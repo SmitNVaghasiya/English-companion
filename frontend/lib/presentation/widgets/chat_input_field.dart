@@ -6,7 +6,9 @@ class ChatInputField extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool isLoading;
+  final bool isVoiceMode;
   final VoidCallback onSend;
+  final VoidCallback onVoice;
   final VoidCallback onClear;
 
   const ChatInputField({
@@ -14,7 +16,9 @@ class ChatInputField extends StatefulWidget {
     required this.controller,
     required this.focusNode,
     required this.isLoading,
+    required this.isVoiceMode,
     required this.onSend,
+    required this.onVoice,
     required this.onClear,
   });
 
@@ -78,7 +82,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
               child: TextField(
                 controller: widget.controller,
                 focusNode: widget.focusNode,
-                enabled: !widget.isLoading,
+                enabled: !widget.isLoading && !widget.isVoiceMode,
                 minLines: 1,
                 maxLines: 5,
                 textCapitalization: TextCapitalization.sentences,
@@ -122,7 +126,9 @@ class _ChatInputFieldState extends State<ChatInputField> {
                   color: Colors.transparent,
                   child: IconButton(
                     onPressed:
-                        (!_hasText || widget.isLoading) ? null : widget.onSend,
+                        widget.isLoading
+                            ? null
+                            : (_hasText ? widget.onSend : widget.onVoice),
                     icon:
                         widget.isLoading
                             ? SizedBox(
@@ -138,9 +144,9 @@ class _ChatInputFieldState extends State<ChatInputField> {
                               ),
                             )
                             : Icon(
-                              Icons.send,
+                              _hasText ? Icons.send : Icons.mic,
                               color:
-                                  _hasText
+                                  _hasText || !_hasText
                                       ? AppColors.primaryColor
                                       : isDark
                                       ? Colors.grey[600]

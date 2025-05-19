@@ -9,7 +9,7 @@ import 'presentation/screens/chat_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Load environment variables
   try {
     await EnvConfig.initialize();
@@ -18,12 +18,10 @@ void main() async {
   } catch (e) {
     debugPrint('Error loading environment variables: $e');
   }
-  
+
   // Set preferred orientations
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
-  
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
   runApp(
     MultiProvider(
       providers: [

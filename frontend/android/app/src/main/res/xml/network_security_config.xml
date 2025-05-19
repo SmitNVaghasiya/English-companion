@@ -10,7 +10,7 @@
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator to host -->
         <domain includeSubdomains="true">192.168.137.1</domain> <!-- Common hotspot IP -->
-        <domain includeSubdomains="true">172.28.144.1</domain> <!-- Existing IP -->
+        <domain includeSubdomains="true">172.28.128.1</domain> <!-- Existing IP -->
         <domain includeSubdomains="true">10.0.0.0</domain>
         <domain includeSubdomains="true">172.16.0.0</domain>
         <domain includeSubdomains="true">192.168.0.0</domain>
