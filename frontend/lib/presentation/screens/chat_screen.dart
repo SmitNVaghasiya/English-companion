@@ -244,11 +244,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final isDark = theme.brightness == Brightness.dark;
 
     return AppBar(
-      toolbarHeight: 70, // Increased height to accommodate padding
+      toolbarHeight: 68, // Keep the increased height
+      titleSpacing: 0, // Remove default title spacing
+      leading: Builder(
+        builder:
+            (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              // iconSize: 32,
+              onPressed: () => Scaffold.of(context).openDrawer(),
+              tooltip: 'Open menu',
+            ),
+      ),
       title: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 12.0,
-        ), // Added vertical padding
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -260,7 +268,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 6), // Slightly increased spacing
+            const SizedBox(height: 6),
             GestureDetector(
               onTap:
                   chatProvider.connectionStatus == 'Connection failed'
@@ -305,19 +313,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         ),
       ),
       actions: [
-        Padding(
-          padding: const EdgeInsets.only(
-            right: 8.0,
-          ), // Add right padding to the theme toggle
-          child: IconButton(
-            icon: Icon(
-              isDark ? Icons.light_mode : Icons.dark_mode,
-              color: isDark ? Colors.amber : Colors.blueGrey,
-            ),
-            onPressed: () => chatProvider.toggleTheme(context),
-            tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+        IconButton(
+          icon: Icon(
+            isDark ? Icons.light_mode : Icons.dark_mode,
+            color: isDark ? Colors.amber : Colors.blueGrey,
           ),
+          onPressed: () => chatProvider.toggleTheme(context),
+          tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
         ),
+        const SizedBox(width: 8),
       ],
     );
   }

@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 class ConnectionUtils {
   // List of possible server IPs to try for auto-discovery
   static const List<String> possibleServerIps = [
-    '192.168.137.113', // WiFi IP
-    '172.28.128.1', // WSL/Docker interface
-    '192.168.31.81', // Other possible IP
-    'localhost', // Localhost as fallback
+    '192.168.137.1',
+    '172.19.80.1',
+    '192.168.137.113',
+    '172.28.128.1',
+    '192.168.31.81',
+    'localhost',
   ];
 
   // Default server port
@@ -49,9 +51,13 @@ class ConnectionUtils {
   static Future<bool> testConnectionToUrl(String url) async {
     http.Client? client;
     try {
-      // Ensure URL ends with a slash
-      String testUrl = url.endsWith('/') ? '${url}health' : '$url/health';
-      testUrl = testUrl.replaceAll('//health', '/health'); // Fix double slashes
+      // Normalize the URL and ensure it ends with exactly one slash
+      String normalizedUrl = url.trim();
+      if (normalizedUrl.endsWith('/')) {
+        normalizedUrl = normalizedUrl.substring(0, normalizedUrl.length - 1);
+      }
+      // Construct the health endpoint URL
+      String testUrl = '$normalizedUrl/health';
 
       debugPrint('Testing connection to: $testUrl');
 

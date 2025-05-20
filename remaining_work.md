@@ -1,10 +1,9 @@
 19-05-2025
-- One more thing top bar padding move english companion text to the left.
+- One more thing top bar padding move english companion text to the left. completed.
 - Improve the ui for the voice to voice conversation According to how i planned.
 - Make voice to voice conversation persistant.
 - Make response more better compare to how i am getting the answers.
-- Improve the icons for the theme module.
-- Ui transition from the dark to light and light to dark theme should be smooth.
+- Improve the icons for the theme module. and Ui transition from the dark to light and light to dark theme should be smooth.
 - Side bar module is different than the current ui color theme so have to match the color theme of the app.
 - During the voice module i am not converting the voice to text so i have to do it also and also not showing. 
 

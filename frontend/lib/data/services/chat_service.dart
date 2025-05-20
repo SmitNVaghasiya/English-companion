@@ -22,8 +22,13 @@ class ChatService {
   Future<Map<String, dynamic>> testConnection() async {
     try {
       debugPrint('ChatService: Starting connection test...');
-      await _initialize();
-      debugPrint('ChatService: After _initialize(), _baseUrl = $_baseUrl');
+      
+      // Only initialize if not already done
+      if (!_isInitialized) {
+        await _initialize();
+      }
+      
+      debugPrint('ChatService: Using base URL: $_baseUrl');
 
       if (!await ConnectionUtils.hasInternetConnection()) {
         final message =
@@ -36,50 +41,36 @@ class ChatService {
         return {'connected': false, 'message': 'Server URL is not configured.'};
       }
 
-      final cleanBaseUrl =
-          _baseUrl.endsWith('/')
-              ? _baseUrl.substring(0, _baseUrl.length - 1)
-              : _baseUrl;
-      final healthUrl = '$cleanBaseUrl${AppEndpoints.health}';
-      debugPrint('ChatService: Testing connection to: $healthUrl');
-
       try {
-        final response = await _apiService
-            .get(AppEndpoints.health)
-            .timeout(const Duration(seconds: 5));
-
-        debugPrint('ChatService: Health response: $response');
-        if (response['status'] == 'ok') {
+        // Test the connection using the ConnectionUtils which now has proper URL handling
+        final isReachable = await ConnectionUtils.testConnectionToUrl(_baseUrl);
+        
+        if (isReachable) {
           return {
             'connected': true,
             'message': 'Successfully connected to the server',
           };
+        } else {
+          return {
+            'connected': false,
+            'message': 'Could not connect to the server. Please check the URL and network.',
+          };
         }
-
-        return {
-          'connected': false,
-          'message':
-              'Server responded with an unexpected status: ${response['status']}',
-        };
       } catch (e) {
         debugPrint('ChatService: Connection test failed: $e');
+        String errorMessage = 'Failed to connect to the server';
+        
         if (e is TimeoutException) {
-          return {
-            'connected': false,
-            'message':
-                'Connection timed out. The server at $cleanBaseUrl is not responding.',
-          };
+          errorMessage = 'Connection timed out. The server is not responding.';
         } else if (e is SocketException) {
-          return {
-            'connected': false,
-            'message':
-                'Could not connect to the server at $cleanBaseUrl. Please check the URL and network.',
-          };
+          errorMessage = 'Could not connect to the server. Please check your network.';
+        } else {
+          errorMessage = '${e.toString().replaceAll('Exception:', '').trim()}';
         }
+        
         return {
           'connected': false,
-          'message':
-              'Failed to connect to the server: ${e.toString().replaceAll('Exception:', '').trim()}',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -96,6 +87,35 @@ class ChatService {
     if (_isInitialized) return;
 
     try {
+      // Try the known working IP first
+      const knownWorkingIp = 'http://172.19.80.1:8000/';
+      debugPrint('ChatService: Testing known working IP: $knownWorkingIp');
+
+      try {
+        // Ensure the URL ends with exactly one slash
+        String testUrl =
+            knownWorkingIp.endsWith('/')
+                ? '${knownWorkingIp}health'
+                : '$knownWorkingIp/health';
+
+        final isReachable = await ConnectionUtils.testConnectionToUrl(testUrl);
+        if (isReachable) {
+          _baseUrl =
+              knownWorkingIp.endsWith('/')
+                  ? knownWorkingIp
+                  : '$knownWorkingIp/';
+          _apiService = ApiService(_baseUrl);
+          debugPrint(
+            'ChatService: Successfully connected to known working IP: $_baseUrl',
+          );
+          _isInitialized = true;
+          return;
+        }
+      } catch (e) {
+        debugPrint('ChatService: Known IP connection test failed: $e');
+      }
+
+      // Try environment URL if known IP fails
       final envUrl = EnvConfig.backendUrl;
       if (envUrl != null && envUrl.isNotEmpty) {
         String cleanUrl = envUrl.trim();
@@ -104,21 +124,27 @@ class ChatService {
         }
 
         debugPrint('ChatService: Testing environment URL: $cleanUrl');
-        final isReachable = await ConnectionUtils.testConnectionToUrl(cleanUrl);
-        debugPrint(
-          'ChatService: Environment URL $cleanUrl reachable: $isReachable',
-        );
+        try {
+          // Ensure the URL ends with exactly one slash
+          String testUrl =
+              cleanUrl.endsWith('/') ? '${cleanUrl}health' : '$cleanUrl/health';
 
-        if (isReachable) {
-          _baseUrl = cleanUrl;
-          _apiService = ApiService(_baseUrl);
-          debugPrint('ChatService: Using environment server URL: $_baseUrl');
-          _isInitialized = true;
-          return;
-        } else {
-          debugPrint(
-            'ChatService: Environment URL $cleanUrl is not reachable.',
+          final isReachable = await ConnectionUtils.testConnectionToUrl(
+            testUrl,
           );
+          debugPrint(
+            'ChatService: Environment URL $testUrl reachable: $isReachable',
+          );
+
+          if (isReachable) {
+            _baseUrl = cleanUrl.endsWith('/') ? cleanUrl : '$cleanUrl/';
+            _apiService = ApiService(_baseUrl);
+            debugPrint('ChatService: Using environment server URL: $_baseUrl');
+            _isInitialized = true;
+            return;
+          }
+        } catch (e) {
+          debugPrint('ChatService: Environment URL connection test failed: $e');
         }
       } else {
         debugPrint('ChatService: No environment URL found in .env file.');
