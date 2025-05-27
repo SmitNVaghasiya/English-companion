@@ -12,4 +12,15 @@ class AppColors {
   ); // User message bubble color
   static const Color themeLightIcon = Colors.amber;
   static const Color themeDarkIcon = Colors.blueGrey;
+  static const Color errorRed = Color(0xFFEF4444);
+  static const Color successGreen = Color(0xFF10B981);
+
+  static Color getColor(Color color, {Color fallback = Colors.grey}) {
+    try {
+      return color;
+    } catch (e) {
+      debugPrint('Error accessing color: $e');
+      return fallback;
+    }
+  }
 }

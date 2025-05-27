@@ -1,106 +1,157 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import '../../data/services/chat_service.dart';
+import '../../core/constants/app_strings.dart';
+import '../../core/config/api_config.dart';
 
 class ChatUtils {
   static void showSnackBar(
     BuildContext context,
     String message, {
     bool isError = false,
+    VoidCallback? onRetry,
   }) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Expanded(
-              child: Text(message, style: TextStyle(color: Colors.white)),
-            ),
-            if (isError)
-              TextButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                },
-                child: Text('Retry', style: TextStyle(color: Colors.white)),
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
-          ],
+              if (isError && onRetry != null)
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text(
+                    AppStrings.retry,
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+            ],
+          ),
+          backgroundColor:
+              isError ? const Color(0xFFEF4444) : const Color(0xFF14B8A6),
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        backgroundColor: isError ? Color(0xFFEF4444) : Color(0xFF14B8A6),
-        duration: Duration(seconds: 5),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+      );
+    } catch (e) {
+      developer.log('Error showing SnackBar: $e', name: 'ChatUtils');
+    }
   }
 
   static String getErrorMessage(Object e, String backendUrl) {
-    if (e.toString().contains('TimeoutException')) {
-      return 'Request timed out. Check server connection at $backendUrl.';
-    } else if (e.toString().contains('Network error') ||
-        e.toString().contains('Failed to connect') ||
-        e.toString().contains('No internet connection')) {
-      return 'Unable to connect to the server at $backendUrl. Check your internet.';
-    } else {
-      return 'An unexpected error occurred: $e';
+    try {
+      if (e.toString().contains('TimeoutException') ||
+          e.toString().contains('timed out')) {
+        return 'Request timed out. Check server connection at $backendUrl.';
+      } else if (e.toString().contains('Network error') ||
+          e.toString().contains('Failed to connect') ||
+          e.toString().contains('No internet connection') ||
+          e.toString().contains('Network is unreachable')) {
+        return 'Unable to connect to the server at $backendUrl. Check your internet.';
+      } else if (e.toString().contains('Connection refused')) {
+        return 'Connection refused. The server at $backendUrl may be down.';
+      } else {
+        return 'An unexpected error occurred: $e';
+      }
+    } catch (error) {
+      developer.log('Error in getErrorMessage: $error', name: 'ChatUtils');
+      return 'An unexpected error occurred.';
     }
   }
 
   static void scrollToBottom(ScrollController controller) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.hasClients) {
-        controller.animateTo(
-          controller.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    try {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (controller.hasClients) {
+          controller.animateTo(
+            controller.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      developer.log('Error scrolling to bottom: $e', name: 'ChatUtils');
+    }
   }
 
   static Future<void> testConnectionAndUpdateStatus({
     required ChatService chatService,
+    required BuildContext context,
     required Function(String, String?, bool) onUpdate,
+    VoidCallback? onRetry,
   }) async {
-    // Only show connecting status if we're not already in a failed state
-    if (!onUpdate.toString().contains('Connection failed')) {
-      onUpdate('Connecting...', 'Checking server availability', false);
-    }
-
     try {
-      final result = await chatService.testConnection().timeout(
-        const Duration(seconds: 5), // Reduced from 10s to 5s for better UX
-        onTimeout: () => {
-          'connected': false,
-          'message': 'Connection timed out',
-        },
-      );
+      onUpdate(AppStrings.connecting, 'Checking server availability...', false);
 
-      debugPrint('ChatUtils: Test connection result: $result');
+      bool isConnected = false;
 
-      if (result['connected'] == true) {
-        onUpdate(
-          'Connected',
-          result['message'] ?? 'Server is responding',
-          false,
+      try {
+        isConnected = await chatService.testConnection().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => false,
         );
-      } else {
-        // Only update to failed state if we're not already connected
-        if (!onUpdate.toString().contains('Connected')) {
-          onUpdate(
-            'Connection failed',
-            result['message'] ?? 'Server not available',
-            true,
+      } catch (e) {
+        developer.log(
+          'Initial connection attempt failed: $e',
+          name: 'ChatUtils',
+        );
+      }
+
+      if (!isConnected) {
+        onUpdate(AppStrings.connecting, 'Trying to find the server...', false);
+
+        ApiConfig.resetBaseUrl();
+
+        try {
+          final workingUrl = await ApiConfig.baseUrl;
+          developer.log(
+            'Found working server at: $workingUrl',
+            name: 'ChatUtils',
           );
+
+          isConnected = await chatService.testConnection().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () => false,
+          );
+        } catch (e) {
+          developer.log('Failed to find working server: $e', name: 'ChatUtils');
         }
       }
-    } catch (e) {
-      debugPrint('ChatUtils: Test connection error: $e');
-      // Only update to failed state if we're not already connected
-      if (!onUpdate.toString().contains('Connected')) {
+
+      developer.log(
+        'ChatUtils: Test connection result: $isConnected',
+        name: 'ChatUtils',
+      );
+
+      if (isConnected) {
+        onUpdate(AppStrings.connected, 'Connected successfully!', false);
+      } else {
         onUpdate(
-          'Connection failed',
-          'Failed to connect: ${e.toString().replaceAll('Exception:', '').trim()}',
+          AppStrings.connectionFailed,
+          'Could not connect to the server. Please check your network and try again.',
           true,
         );
       }
+    } catch (e) {
+      developer.log('ChatUtils: Test connection error: $e', name: 'ChatUtils');
+      String errorMessage = 'Failed to connect to the server.';
+
+      if (e.toString().contains('Network is unreachable')) {
+        errorMessage = AppStrings.networkError;
+      } else if (e.toString().contains('Connection refused')) {
+        errorMessage = 'Connection refused. The server may be down.';
+      } else if (e.toString().contains('timed out')) {
+        errorMessage = AppStrings.serverNotResponding;
+      }
+
+      onUpdate(AppStrings.connectionFailed, errorMessage, true);
     }
   }
 }

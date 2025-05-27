@@ -3,43 +3,70 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ConnectionUtils {
-  // List of possible server IPs to try for auto-discovery
   static const List<String> possibleServerIps = [
     '192.168.137.1',
+    '10.224.13.128',
+    '172.30.176.1',
     '172.19.80.1',
     '192.168.137.113',
     '172.28.128.1',
     '192.168.31.81',
-    'localhost',
   ];
 
-  // Default server port
   static const int serverPort = 8000;
-
-  // Timeout for connection attempts
   static const Duration connectionTimeout = Duration(seconds: 5);
   static const Duration healthCheckTimeout = Duration(seconds: 3);
-
-  // Retry configuration
   static const int maxRetries = 3;
   static const Duration retryDelay = Duration(seconds: 1);
+  static const String _serverUrlKey = 'server_url';
+  static Timer? _discoveryTimer;
 
-  // Check if device has internet connection
+  static Future<void> startServerDiscovery() async {
+    try {
+      if (_discoveryTimer != null && _discoveryTimer!.isActive) {
+        debugPrint('ConnectionUtils: Server discovery already running');
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      _discoveryTimer = Timer.periodic(Duration(minutes: 5), (timer) async {
+        try {
+          final serverUrl = await findServerUrl();
+          if (serverUrl != null) {
+            await prefs.setString(_serverUrlKey, serverUrl);
+            debugPrint('ConnectionUtils: Updated server URL: $serverUrl');
+          }
+        } catch (e) {
+          debugPrint('ConnectionUtils: Error in periodic discovery: $e');
+        }
+      });
+    } catch (e) {
+      debugPrint('ConnectionUtils: Error starting server discovery: $e');
+    }
+  }
+
+  static void stopServerDiscovery() {
+    try {
+      _discoveryTimer?.cancel();
+      _discoveryTimer = null;
+      debugPrint('ConnectionUtils: Stopped server discovery');
+    } catch (e) {
+      debugPrint('ConnectionUtils: Error stopping server discovery: $e');
+    }
+  }
+
   static Future<bool> hasInternetConnection() async {
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        return false;
-      }
+      if ([ConnectivityResult.none].contains(connectivityResult)) return false;
 
-      // Additional check to confirm internet access
       final result = await InternetAddress.lookup('google.com').timeout(
-        const Duration(seconds: 2),
+        Duration(seconds: 2),
         onTimeout: () => throw SocketException('Connection timeout'),
       );
-
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } catch (e) {
       debugPrint('ConnectionUtils: hasInternetConnection error: $e');
@@ -47,159 +74,131 @@ class ConnectionUtils {
     }
   }
 
-  // Test connection to a specific URL
   static Future<bool> testConnectionToUrl(String url) async {
     http.Client? client;
     try {
-      // Normalize the URL and ensure it ends with exactly one slash
-      String normalizedUrl = url.trim();
-      if (normalizedUrl.endsWith('/')) {
-        normalizedUrl = normalizedUrl.substring(0, normalizedUrl.length - 1);
-      }
-      // Construct the health endpoint URL
+      String normalizedUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
       String testUrl = '$normalizedUrl/health';
-
       debugPrint('Testing connection to: $testUrl');
 
-      client = http.Client();
-      final uri = Uri.parse(testUrl);
-
-      // Print additional debug info
-      debugPrint('URI: $uri');
-      debugPrint('Scheme: ${uri.scheme}');
-      debugPrint('Host: ${uri.host}');
-      debugPrint('Port: ${uri.port}');
-      debugPrint('Path: ${uri.path}');
-
-      // First try a simple socket connection to check basic connectivity
+      // First test socket connection
       try {
+        final uri = Uri.parse(testUrl);
         debugPrint('Attempting socket connection to ${uri.host}:${uri.port}');
         final socket = await Socket.connect(
           uri.host,
           uri.port,
-          timeout: const Duration(seconds: 3),
+          timeout: Duration(seconds: 3),
         );
         socket.destroy();
-        debugPrint('Socket connection successful');
+        await socket.close();
+        debugPrint('✅ Socket connection successful to ${uri.host}:${uri.port}');
+      } on SocketException catch (e) {
+        debugPrint('❌ Socket connection failed: $e');
+        return false;
       } catch (e) {
-        debugPrint('Socket connection failed: $e');
+        debugPrint('❌ Unexpected socket error: $e');
+        return false;
       }
 
+      // If socket connection succeeds, try HTTP request
+      client = http.Client();
       final stopwatch = Stopwatch()..start();
-      final request = http.Request('GET', uri);
 
-      // Add headers to help with debugging
-      request.headers['Accept'] = 'application/json';
-      request.headers['Connection'] = 'close';
+      try {
+        final response = await client
+            .get(
+              Uri.parse(testUrl),
+              headers: {'Accept': 'application/json', 'Connection': 'close'},
+            )
+            .timeout(healthCheckTimeout);
 
-      final response = await client
-          .send(request)
-          .timeout(
-            healthCheckTimeout,
-            onTimeout: () {
-              client?.close();
-              throw TimeoutException(
-                'Connection to $url timed out after ${healthCheckTimeout.inSeconds} seconds',
-              );
-            },
-          );
+        stopwatch.stop();
+        debugPrint(
+          '✅ HTTP ${response.statusCode} from $testUrl (${stopwatch.elapsedMilliseconds}ms)',
+        );
+        debugPrint('Response headers: ${response.headers}');
+        debugPrint('Response body: ${response.body}');
 
-      final responseBody = await response.stream.bytesToString();
-      stopwatch.stop();
-
-      debugPrint(
-        'Response status: ${response.statusCode} (${stopwatch.elapsedMilliseconds}ms)',
-      );
-      debugPrint('Response headers: ${response.headers}');
-      debugPrint('Response body: $responseBody');
-
-      return response.statusCode == 200;
-    } on TimeoutException catch (e) {
-      debugPrint('ConnectionUtils: Timeout testing $url: $e');
-      return false;
-    } on SocketException catch (e) {
-      debugPrint('ConnectionUtils: Socket error testing $url: $e');
-      debugPrint('OS Error: ${e.osError}');
-      debugPrint('Address: ${e.address}');
-      debugPrint('Port: ${e.port}');
-      return false;
-    } on FormatException catch (e) {
-      debugPrint('ConnectionUtils: Format error testing $url: $e');
-      debugPrint('Source: ${e.source}');
-      debugPrint('Offset: ${e.offset}');
-      return false;
-    } catch (e, stackTrace) {
+        return response.statusCode == 200;
+      } on TimeoutException {
+        debugPrint(
+          '❌ Request to $testUrl timed out after ${healthCheckTimeout.inSeconds}s',
+        );
+        return false;
+      } on http.ClientException catch (e) {
+        debugPrint('❌ HTTP Client error: $e');
+        return false;
+      } catch (e, stackTrace) {
+        debugPrint('❌ Unexpected HTTP error: $e');
+        debugPrint('Stack trace: $stackTrace');
+        return false;
+      }
+    } catch (e) {
       debugPrint('ConnectionUtils: Error testing $url: $e');
-      debugPrint('Stack trace: $stackTrace');
       return false;
     } finally {
       client?.close();
     }
   }
 
-  // Find a working server URL from the list of possible IPs
   static Future<String?> findServerUrl() async {
-    if (!await hasInternetConnection()) {
-      debugPrint('ConnectionUtils: No internet connection available');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedUrl = prefs.getString(_serverUrlKey);
+      if (cachedUrl != null && await testConnectionToUrl(cachedUrl)) {
+        debugPrint('ConnectionUtils: Using cached server URL: $cachedUrl');
+        return cachedUrl;
+      }
+
+      if (!await hasInternetConnection()) {
+        debugPrint('ConnectionUtils: No internet connection available');
+        return null;
+      }
+
+      for (var ip in possibleServerIps) {
+        final httpUrl = 'http://$ip:$serverPort';
+        final httpsUrl = 'https://$ip:$serverPort';
+
+        for (var url in [httpUrl, httpsUrl]) {
+          try {
+            if (await testConnectionToUrl(url)) {
+              final finalUrl = url.endsWith('/') ? url : '$url/';
+              await prefs.setString(_serverUrlKey, finalUrl);
+              debugPrint('ConnectionUtils: Found working server at $finalUrl');
+              return finalUrl;
+            }
+          } catch (e) {
+            debugPrint('ConnectionUtils: Error testing $url: $e');
+          }
+        }
+      }
+
+      final localUrls = [
+        'http://localhost:$serverPort',
+        'https://localhost:$serverPort',
+        'http://127.0.0.1:$serverPort',
+        'https://127.0.0.1:$serverPort',
+      ];
+
+      for (final url in localUrls) {
+        try {
+          if (await testConnectionToUrl(url)) {
+            final finalUrl = url.endsWith('/') ? url : '$url/';
+            await prefs.setString(_serverUrlKey, finalUrl);
+            debugPrint('ConnectionUtils: Found working server at $finalUrl');
+            return finalUrl;
+          }
+        } catch (e) {
+          debugPrint('ConnectionUtils: Error testing local URL $url: $e');
+        }
+      }
+
+      debugPrint('ConnectionUtils: No working server found');
+      return null;
+    } catch (e) {
+      debugPrint('ConnectionUtils: Error in findServerUrl: $e');
       return null;
     }
-
-    // Try both HTTP and HTTPS for each IP
-    for (var ip in possibleServerIps) {
-      // Try HTTP first
-      final httpUrl = 'http://$ip:$serverPort';
-      debugPrint('ConnectionUtils: Trying HTTP connection to $httpUrl');
-
-      try {
-        final isReachable = await testConnectionToUrl(httpUrl);
-        if (isReachable) {
-          debugPrint('ConnectionUtils: Found working HTTP server at $httpUrl');
-          return httpUrl.endsWith('/') ? httpUrl : '$httpUrl/';
-        }
-      } catch (e) {
-        debugPrint('ConnectionUtils: Error testing HTTP $httpUrl: $e');
-      }
-
-      // Then try HTTPS
-      final httpsUrl = 'https://$ip:$serverPort';
-      debugPrint('ConnectionUtils: Trying HTTPS connection to $httpsUrl');
-
-      try {
-        final isReachable = await testConnectionToUrl(httpsUrl);
-        if (isReachable) {
-          debugPrint(
-            'ConnectionUtils: Found working HTTPS server at $httpsUrl',
-          );
-          return httpsUrl.endsWith('/') ? httpsUrl : '$httpsUrl/';
-        }
-      } catch (e) {
-        debugPrint('ConnectionUtils: Error testing HTTPS $httpsUrl: $e');
-      }
-    }
-
-    // If no server found, try localhost with both HTTP and HTTPS
-    debugPrint('ConnectionUtils: Trying localhost as last resort');
-    final localUrls = [
-      'http://localhost:$serverPort',
-      'https://localhost:$serverPort',
-      'http://127.0.0.1:$serverPort',
-      'https://127.0.0.1:$serverPort',
-    ];
-
-    for (final url in localUrls) {
-      try {
-        debugPrint('ConnectionUtils: Trying local URL: $url');
-        final isReachable = await testConnectionToUrl(url);
-        if (isReachable) {
-          debugPrint('ConnectionUtils: Found working server at $url');
-          return url.endsWith('/') ? url : '$url/';
-        }
-      } catch (e) {
-        debugPrint('ConnectionUtils: Error testing local URL $url: $e');
-      }
-    }
-
-    debugPrint('ConnectionUtils: No working server found');
-    return null;
   }
 }

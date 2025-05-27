@@ -8,7 +8,7 @@ class AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Drawer(
       backgroundColor: isDark ? AppColors.lightBlack : Colors.white,
       elevation: 0,
@@ -46,7 +46,7 @@ class AppDrawer extends StatelessWidget {
                 Text(
                   'user@example.com',
                   style: TextStyle(
-                    color: Colors.white70, 
+                    color: Colors.white70,
                     fontSize: 13,
                     letterSpacing: 0.2,
                   ),
@@ -59,44 +59,44 @@ class AppDrawer extends StatelessWidget {
             icon: Icons.chat_rounded,
             title: 'Chat',
             isSelected: true,
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/chat'),
           ),
           _buildDrawerItem(
             context,
             icon: Icons.school_rounded,
             title: 'Learn',
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/learn'),
           ),
           _buildDrawerItem(
             context,
             icon: Icons.assignment_rounded,
             title: 'Practice',
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/practice'),
           ),
           _buildDrawerItem(
             context,
             icon: Icons.person_rounded,
             title: 'Profile',
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/profile'),
           ),
           const Divider(height: 1, thickness: 1),
           _buildDrawerItem(
             context,
             icon: Icons.settings_rounded,
             title: 'Settings',
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/settings'),
           ),
           _buildDrawerItem(
             context,
             icon: Icons.help_outline_rounded,
             title: 'Help & Feedback',
-            onTap: () => _navigateAndClose(context),
+            onTap: () => _navigateAndClose(context, '/help'),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildDrawerItem(
     BuildContext context, {
     required IconData icon,
@@ -106,37 +106,45 @@ class AppDrawer extends StatelessWidget {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected 
-            ? AppColors.primaryColor 
-            : isDark 
-                ? Colors.white70 
+        color:
+            isSelected
+                ? AppColors.primaryColor
+                : isDark
+                ? Colors.white70
                 : Colors.grey[700],
         size: 24,
       ),
       title: Text(
         title,
         style: TextStyle(
-          color: isSelected 
-              ? AppColors.primaryColor 
-              : isDark 
-                  ? Colors.white 
+          color:
+              isSelected
+                  ? AppColors.primaryColor
+                  : isDark
+                  ? Colors.white
                   : Colors.black87,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           fontSize: 15,
         ),
       ),
       selected: isSelected,
-      selectedTileColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+      selectedTileColor:
+          isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
       onTap: onTap,
     );
   }
-  
-  void _navigateAndClose(BuildContext context) {
-    Navigator.pop(context);
-    // Add navigation logic here when needed
+
+  void _navigateAndClose(BuildContext context, String route) {
+    try {
+      Navigator.pop(context);
+      // Placeholder for navigation logic
+      debugPrint('Navigating to $route');
+    } catch (e) {
+      debugPrint('Error navigating to $route: $e');
+    }
   }
 }

@@ -1,402 +1,272 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import '../../core/constants/app_endpoints.dart';
-import '../../core/config/env_config.dart';
-import '../../core/utils/connection_utils.dart';
-import '../models/chat_response.dart';
-import 'api_service.dart';
+import '../../core/config/api_config.dart';
 
 class ChatService {
-  late ApiService _apiService;
-  late String _baseUrl = '';
-  bool _isInitialized = false;
+  String? _baseUrl;
+  bool _isRecording = false;
+  String? _currentSessionId;
   final AudioRecorder _recorder = AudioRecorder();
+  final FlutterTts _tts = FlutterTts();
+  String? _currentAudioPath;
 
-  ChatService();
-
-  Future<Map<String, dynamic>> testConnection() async {
-    try {
-      debugPrint('ChatService: Starting connection test...');
-      
-      // Only initialize if not already done
-      if (!_isInitialized) {
-        await _initialize();
-      }
-      
-      debugPrint('ChatService: Using base URL: $_baseUrl');
-
-      if (!await ConnectionUtils.hasInternetConnection()) {
-        final message =
-            'No internet connection. Please check your network and try again.';
-        debugPrint('ChatService: $message');
-        return {'connected': false, 'message': message};
-      }
-
-      if (_baseUrl.isEmpty) {
-        return {'connected': false, 'message': 'Server URL is not configured.'};
-      }
-
-      try {
-        // Test the connection using the ConnectionUtils which now has proper URL handling
-        final isReachable = await ConnectionUtils.testConnectionToUrl(_baseUrl);
-        
-        if (isReachable) {
-          return {
-            'connected': true,
-            'message': 'Successfully connected to the server',
-          };
-        } else {
-          return {
-            'connected': false,
-            'message': 'Could not connect to the server. Please check the URL and network.',
-          };
-        }
-      } catch (e) {
-        debugPrint('ChatService: Connection test failed: $e');
-        String errorMessage = 'Failed to connect to the server';
-        
-        if (e is TimeoutException) {
-          errorMessage = 'Connection timed out. The server is not responding.';
-        } else if (e is SocketException) {
-          errorMessage = 'Could not connect to the server. Please check your network.';
-        } else {
-          errorMessage = '${e.toString().replaceAll('Exception:', '').trim()}';
-        }
-        
-        return {
-          'connected': false,
-          'message': errorMessage,
-        };
-      }
-    } catch (e) {
-      debugPrint('ChatService: Error in testConnection: $e');
-      return {
-        'connected': false,
-        'message':
-            'Failed to connect to the server: ${e.toString().replaceAll('Exception:', '').trim()}',
-      };
-    }
+  ChatService() {
+    _initialize();
   }
 
+  bool get isRecording => _isRecording;
+
   Future<void> _initialize() async {
-    if (_isInitialized) return;
-
     try {
-      // Try the known working IP first
-      const knownWorkingIp = 'http://172.19.80.1:8000/';
-      debugPrint('ChatService: Testing known working IP: $knownWorkingIp');
-
-      try {
-        // Ensure the URL ends with exactly one slash
-        String testUrl =
-            knownWorkingIp.endsWith('/')
-                ? '${knownWorkingIp}health'
-                : '$knownWorkingIp/health';
-
-        final isReachable = await ConnectionUtils.testConnectionToUrl(testUrl);
-        if (isReachable) {
-          _baseUrl =
-              knownWorkingIp.endsWith('/')
-                  ? knownWorkingIp
-                  : '$knownWorkingIp/';
-          _apiService = ApiService(_baseUrl);
-          debugPrint(
-            'ChatService: Successfully connected to known working IP: $_baseUrl',
-          );
-          _isInitialized = true;
-          return;
-        }
-      } catch (e) {
-        debugPrint('ChatService: Known IP connection test failed: $e');
-      }
-
-      // Try environment URL if known IP fails
-      final envUrl = EnvConfig.backendUrl;
-      if (envUrl != null && envUrl.isNotEmpty) {
-        String cleanUrl = envUrl.trim();
-        if (!cleanUrl.endsWith('/')) {
-          cleanUrl = '$cleanUrl/';
-        }
-
-        debugPrint('ChatService: Testing environment URL: $cleanUrl');
-        try {
-          // Ensure the URL ends with exactly one slash
-          String testUrl =
-              cleanUrl.endsWith('/') ? '${cleanUrl}health' : '$cleanUrl/health';
-
-          final isReachable = await ConnectionUtils.testConnectionToUrl(
-            testUrl,
-          );
-          debugPrint(
-            'ChatService: Environment URL $testUrl reachable: $isReachable',
-          );
-
-          if (isReachable) {
-            _baseUrl = cleanUrl.endsWith('/') ? cleanUrl : '$cleanUrl/';
-            _apiService = ApiService(_baseUrl);
-            debugPrint('ChatService: Using environment server URL: $_baseUrl');
-            _isInitialized = true;
-            return;
-          }
-        } catch (e) {
-          debugPrint('ChatService: Environment URL connection test failed: $e');
-        }
-      } else {
-        debugPrint('ChatService: No environment URL found in .env file.');
-      }
-
-      debugPrint('ChatService: Trying auto-discovery for server URL');
-      try {
-        final serverUrl = await ConnectionUtils.findServerUrl();
-        if (serverUrl != null) {
-          _baseUrl = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
-          _apiService = ApiService(_baseUrl);
-          debugPrint('ChatService: Using discovered server URL: $_baseUrl');
-          _isInitialized = true;
-          return;
-        }
-      } catch (e) {
-        debugPrint('ChatService: Error during server discovery: $e');
-      }
-
-      debugPrint('ChatService: Trying localhost as fallback');
-      const localUrl = 'http://localhost:8000/';
-      final isLocalReachable = await ConnectionUtils.testConnectionToUrl(
-        localUrl,
-      );
-      debugPrint('ChatService: Localhost reachable: $isLocalReachable');
-
-      if (isLocalReachable) {
-        _baseUrl = localUrl;
-        _apiService = ApiService(_baseUrl);
-        debugPrint('ChatService: Using localhost as server URL');
-      } else {
-        if (envUrl != null && envUrl.isNotEmpty) {
-          _baseUrl = envUrl.endsWith('/') ? envUrl : '$envUrl/';
-        } else {
-          _baseUrl = localUrl;
-        }
-        _apiService = ApiService(_baseUrl);
-        debugPrint('ChatService: Using fallback server URL: $_baseUrl');
-      }
-
-      _isInitialized = true;
+      _baseUrl = await ApiConfig.baseUrl;
+      await _initializeTts();
     } catch (e) {
-      debugPrint('ChatService: Error during initialization: $e');
-      _baseUrl = 'http://localhost:8000/';
-      _apiService = ApiService(_baseUrl);
-      _isInitialized = true;
+      debugPrint('ChatService: Initialization failed: $e');
+      _baseUrl = null;
       rethrow;
     }
   }
 
-  String get backendUrl {
-    // Ensure no double slashes in the URL
-    final cleanBaseUrl =
-        _baseUrl.endsWith('/')
-            ? _baseUrl.substring(0, _baseUrl.length - 1)
-            : _baseUrl;
-    return cleanBaseUrl;
-  }
-
-  Future<ChatResponse> sendQuery(List<Map<String, dynamic>> messages) async {
+  Future<void> _initializeTts() async {
     try {
-      await _initialize();
-
-      if (!await ConnectionUtils.hasInternetConnection()) {
-        debugPrint('ChatService: No internet connection available');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content:
-              'No internet connection. Please check your network and try again.',
-          timestamp: DateTime.now(),
-        );
-      }
-
-      if (messages.isEmpty) {
-        debugPrint('ChatService: No messages to send');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content: 'No message content provided',
-          timestamp: DateTime.now(),
-        );
-      }
-
-      debugPrint(
-        'ChatService: Sending message to server: ${messages.last['content']}',
-      );
-
-      final apiMessages =
-          messages
-              .map(
-                (msg) => {
-                  'role': msg['role'] == 'user' ? 'user' : 'assistant',
-                  'content': msg['content'] ?? '',
-                  'timestamp':
-                      msg['timestamp']?.toString() ??
-                      DateTime.now().toIso8601String(),
-                },
-              )
-              .toList();
-
-      final response = await _apiService.post(AppEndpoints.chat, {
-        'messages': apiMessages,
-      });
-
-      debugPrint('ChatService: Received response: $response');
-      return ChatResponse.fromMap({
-        'status': 'success',
-        'role': response['role'] ?? 'assistant',
-        'content': response['content'] ?? 'No response content',
-        'timestamp': response['timestamp'] ?? DateTime.now().toIso8601String(),
-      });
+      await _tts.setLanguage('en-US');
+      await _tts.setSpeechRate(0.5);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
     } catch (e) {
-      debugPrint('ChatService: Error in sendQuery: $e');
-      return ChatResponse(
-        status: 'error',
-        role: 'system',
-        content:
-            e is SocketException
-                ? 'Could not connect to the server. Please check your connection.'
-                : e.toString().contains('timed out')
-                ? 'Request timed out. Please try again.'
-                : 'An unexpected error occurred: ${e.toString()}',
-        timestamp: DateTime.now(),
-      );
+      debugPrint('ChatService: TTS initialization failed: $e');
+      throw Exception('Failed to initialize TTS');
     }
   }
 
-  Future<ChatResponse> sendVoiceQuery() async {
-    String? audioPath; // Declare audioPath at method scope
+  Future<Map<String, dynamic>> sendQuery(
+    List<Map<String, dynamic>> messages,
+  ) async {
+    if (_baseUrl == null) {
+      debugPrint('ChatService: Base URL not initialized');
+      return {
+        'status': 'error',
+        'content': 'Server connection not initialized. Please try again later.',
+      };
+    }
+
     try {
-      await _initialize();
-
-      if (!await ConnectionUtils.hasInternetConnection()) {
-        debugPrint('ChatService: No internet connection available');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content:
-              'No internet connection. Please check your network and try again.',
-          timestamp: DateTime.now(),
-        );
-      }
-
-      // Check microphone permission
-      debugPrint('ChatService: Checking microphone permission');
-      if (!await _recorder.hasPermission()) {
-        debugPrint('ChatService: Microphone permission denied');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content: 'Microphone permission is required for voice chat.',
-          timestamp: DateTime.now(),
-        );
-      }
-      debugPrint('ChatService: Microphone permission granted');
-
-      // Record audio
-      debugPrint('ChatService: Starting audio recording');
-      final directory = await getTemporaryDirectory();
-      audioPath = '${directory.path}/voice_input.wav';
-      debugPrint('ChatService: Audio will be saved to: $audioPath');
-      await _recorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.wav, // Use WAV for server compatibility
-          sampleRate: 16000,
-        ),
-        path: audioPath,
+      final response = await http.post(
+        Uri.parse('$_baseUrl${ApiConfig.chatEndpoint}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'messages': messages}),
       );
-      debugPrint('ChatService: Recording started');
 
-      // Record for a longer duration (10 seconds) to ensure enough time to speak
-      await Future.delayed(const Duration(seconds: 10));
-      debugPrint('ChatService: Stopping audio recording');
-      await _recorder.stop();
-      debugPrint('ChatService: Recording stopped');
-
-      // Check if the file exists
-      final audioFile = File(audioPath);
-      if (await audioFile.exists()) {
-        debugPrint('ChatService: Audio file exists at: $audioPath');
-        final fileSize = await audioFile.length();
-        debugPrint('ChatService: Audio file size: $fileSize bytes');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'status': 'success',
+          'role': data['role'] ?? 'assistant',
+          'content': data['content'] ?? '',
+          'timestamp': data['timestamp'] ?? DateTime.now().toIso8601String(),
+        };
       } else {
-        debugPrint('ChatService: Audio file does not exist');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content: 'Failed to record audio. Please try again.',
-          timestamp: DateTime.now(),
+        return {
+          'status': 'error',
+          'content': 'Failed to send message: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      debugPrint('ChatService: Error sending query: $e');
+      return {'status': 'error', 'content': 'Network error: $e'};
+    }
+  }
+
+  Future<bool> testConnection() async {
+    try {
+      if (_baseUrl == null) {
+        debugPrint('ChatService: Base URL not initialized');
+        return false;
+      }
+      final isConnected = await ApiConfig.testConnectionWithUrl(_baseUrl!);
+      if (!isConnected) {
+        debugPrint(
+          'ChatService: Connection test failed: Could not connect to server at $_baseUrl',
         );
       }
+      return isConnected;
+    } catch (e) {
+      debugPrint('ChatService: Connection test failed with error: $e');
+      return false;
+    }
+  }
 
-      // Send audio to server
-      final voiceChatUrl = '${backendUrl}${AppEndpoints.voiceChat}';
-      debugPrint('ChatService: Preparing to send request to $voiceChatUrl');
-      final request = http.MultipartRequest('POST', Uri.parse(voiceChatUrl));
-      request.files.add(await http.MultipartFile.fromPath('file', audioPath));
+  Future<Map<String, dynamic>> startVoiceRecording() async {
+    try {
+      if (_isRecording) {
+        return {'status': 'error', 'message': 'Recording already in progress'};
+      }
+
+      final dir = await getTemporaryDirectory();
+      _currentAudioPath = '${dir.path}/recording.m4a';
+      await _recorder.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: _currentAudioPath!,
+      );
+      _isRecording = true;
+      return {'status': 'recording', 'message': 'Recording started'};
+    } catch (e) {
+      debugPrint('ChatService: Error starting voice recording: $e');
+      return {
+        'status': 'error',
+        'message': 'Failed to start voice recording: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> stopVoiceRecording(
+    List<Map<String, dynamic>> chatHistory,
+  ) async {
+    if (!_isRecording || _currentAudioPath == null) {
+      debugPrint('ChatService: No active recording session');
+      return {'status': 'error', 'message': 'No active recording session'};
+    }
+
+    if (_baseUrl == null) {
+      debugPrint('ChatService: Base URL not initialized');
+      return {
+        'status': 'error',
+        'message': 'Server connection not initialized. Please try again later.',
+      };
+    }
+
+    try {
+      debugPrint('ChatService: Stopping recorder...');
+      await _recorder.stop();
+      _isRecording = false;
+      debugPrint('ChatService: Recorder stopped successfully');
+
+      final file = File(_currentAudioPath!);
+      if (!await file.exists()) {
+        debugPrint('ChatService: Audio file not found at ${file.path}');
+        return {'status': 'error', 'message': 'Audio file not found'};
+      }
+
+      final fileSize = await file.length();
+      debugPrint('ChatService: Audio file size: ${fileSize} bytes');
+      if (fileSize < 100) {
+        debugPrint(
+          'ChatService: Audio file is too small, likely empty or corrupted',
+        );
+        return {
+          'status': 'error',
+          'message': 'Audio recording is too short or empty',
+        };
+      }
+
+      final endpoint = '$_baseUrl${ApiConfig.voiceChatEndpoint}';
+      debugPrint('ChatService: Sending audio to endpoint: $endpoint');
+
+      final request = http.MultipartRequest('POST', Uri.parse(endpoint));
+
+      // Add chat history
+      request.fields['history'] = jsonEncode(chatHistory);
+      debugPrint('ChatService: Added history to request: $chatHistory');
+
+      // Add audio file
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+      debugPrint('ChatService: Added file to request with name: file');
+
       debugPrint('ChatService: Sending request...');
-      final response = await request.send().timeout(
-        const Duration(seconds: 15),
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
         onTimeout: () {
-          debugPrint('ChatService: Request timed out');
-          throw TimeoutException('Request timed out');
+          throw TimeoutException('Request timed out after 30 seconds');
         },
       );
       debugPrint(
-        'ChatService: Request sent, status code: ${response.statusCode}',
+        'ChatService: Got response with status: ${streamedResponse.statusCode}',
       );
-      final responseBody = await response.stream.bytesToString();
-      debugPrint('ChatService: Received response: $responseBody');
+
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        final responseJson = jsonDecode(responseBody);
-        return ChatResponse.fromMap({
+        debugPrint('ChatService: Successfully processed voice recording');
+        final responseData = jsonDecode(response.body);
+        return {
           'status': 'success',
-          'role': responseJson['role'] ?? 'assistant',
-          'content': responseJson['content'] ?? 'No response content',
+          'transcribed_text': responseData['transcribed_text'] ?? '',
+          'content': responseData['content'] ?? '',
+          'role': responseData['role'] ?? 'assistant',
           'timestamp':
-              responseJson['timestamp'] ?? DateTime.now().toIso8601String(),
-        });
+              responseData['timestamp'] ?? DateTime.now().toIso8601String(),
+        };
       } else {
-        debugPrint('ChatService: Server error: ${response.statusCode}');
-        return ChatResponse(
-          status: 'error',
-          role: 'system',
-          content: 'Server error: ${response.statusCode} - $responseBody',
-          timestamp: DateTime.now(),
+        debugPrint(
+          'ChatService: Server returned error status: ${response.statusCode}',
         );
+        debugPrint('ChatService: Response body: ${response.body}');
+        return {
+          'status': 'error',
+          'message':
+              'Failed to process voice recording: ${response.statusCode} - ${response.body}',
+        };
       }
     } catch (e) {
-      debugPrint('ChatService: Error in sendVoiceQuery: $e');
-      return ChatResponse(
-        status: 'error',
-        role: 'system',
-        content:
-            e is SocketException
-                ? 'Could not connect to the server. Please check your connection.'
-                : e.toString().contains('timed out')
-                ? 'Request timed out. Please try again.'
-                : 'Failed to process voice request: ${e.toString()}',
-        timestamp: DateTime.now(),
-      );
+      debugPrint('ChatService: Error stopping voice recording: $e');
+      return {'status': 'error', 'message': 'Network error: $e'};
     } finally {
-      // Clean up the audio file if it was created
-      if (audioPath != null) {
-        final audioFile = File(audioPath);
-        if (await audioFile.exists()) {
-          await audioFile.delete();
-          debugPrint('ChatService: Cleaned up audio file');
-        }
-      }
+      _isRecording = false;
+      _currentAudioPath = null;
     }
+  }
+
+  Future<bool> speak(String text) async {
+    if (text.isEmpty) return false;
+
+    try {
+      await _tts.speak(text);
+      return true;
+    } catch (e) {
+      debugPrint('ChatService: Error in text-to-speech: $e');
+      return false;
+    }
+  }
+
+  Future<void> stop() async {
+    try {
+      await _tts.stop();
+      if (_isRecording) {
+        await _recorder.stop();
+        _isRecording = false;
+      }
+      debugPrint('ChatService: Audio playback and recording stopped');
+    } catch (e) {
+      debugPrint('ChatService: Error stopping audio: $e');
+    }
+  }
+
+  Future<File> getAudioResponse(String audioUrl) async {
+    try {
+      final response = await http.get(Uri.parse(audioUrl));
+
+      if (response.statusCode == 200) {
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/response_audio.mp3');
+        await file.writeAsBytes(response.bodyBytes);
+        return file;
+      } else {
+        throw Exception('Failed to get audio response: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('ChatService: Error getting audio response: $e');
+      throw Exception('Network error: $e');
+    }
+  }
+
+  void dispose() {
+    _recorder.dispose();
+    _tts.stop();
   }
 }

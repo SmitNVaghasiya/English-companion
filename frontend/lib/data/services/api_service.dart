@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart'; // Added for debugPrint
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   final String baseUrl;
   final int _maxRetries = 3;
   final Duration _initialRetryDelay = Duration(seconds: 1);
-  final Duration _httpTimeout = Duration(seconds: 5);
+  final Duration _httpTimeout = Duration(seconds: 30);
 
   ApiService(String baseUrl)
     : baseUrl =
@@ -18,7 +18,6 @@ class ApiService {
     String endpoint,
     Map<String, dynamic> body,
   ) async {
-    // Ensure no double slashes in the URL
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final url = '$baseUrl$cleanEndpoint';
     debugPrint('ApiService: Posting to URL: $url');
@@ -51,7 +50,10 @@ class ApiService {
         }
       } catch (e) {
         debugPrint('ApiService: Attempt $attempt failed: $e');
-        if (attempt == _maxRetries) rethrow;
+        if (attempt == _maxRetries) {
+          debugPrint('ApiService: Max retries reached. Throwing error: $e');
+          rethrow;
+        }
         await Future.delayed(_initialRetryDelay * (1 << (attempt - 1)));
       }
     }
@@ -59,25 +61,31 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> get(String endpoint) async {
-    // Ensure no double slashes in the URL
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint : '/$endpoint';
     final url = '$baseUrl$cleanEndpoint';
     debugPrint('ApiService: Getting from URL: $url');
 
-    try {
-      final response = await http
-          .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
-          .timeout(Duration(seconds: 5));
-      debugPrint('ApiService: Response status: ${response.statusCode}');
-      debugPrint('ApiService: Response body: ${response.body}');
+    for (int attempt = 1; attempt <= _maxRetries; attempt++) {
+      try {
+        final response = await http
+            .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
+            .timeout(Duration(seconds: 30));
+        debugPrint('ApiService: Response status: ${response.statusCode}');
+        debugPrint('ApiService: Response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        }
+        throw Exception('Failed to fetch data: ${response.statusCode}');
+      } catch (e) {
+        debugPrint('ApiService: Attempt $attempt failed: $e');
+        if (attempt == _maxRetries) {
+          debugPrint('ApiService: Max retries reached. Throwing error: $e');
+          throw Exception('Network error: $e');
+        }
+        await Future.delayed(_initialRetryDelay * (1 << (attempt - 1)));
       }
-      throw Exception('Failed to fetch data: ${response.statusCode}');
-    } catch (e) {
-      debugPrint('ApiService: Error in GET request: $e');
-      throw Exception('Network error: $e');
     }
+    throw Exception('Unexpected error in request handling');
   }
 }

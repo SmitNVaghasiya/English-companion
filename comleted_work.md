@@ -1,2 +1,11 @@
 19-05-2025
-- One more thing top bar padding was reverted so have to add it back in top and bottom of the app bar also. --completed
+Chat module completed.
+
+20-05-2025
+Basic HomeScreen Completed to redirect to the chat,voice,grammar and Progress tracker.
+
+23-05-2025
+- Voice text module returning what user has spoken and appropriate response for that answer but i am not able to convert that back to the audio.
+
+24-05-2025
+- 
