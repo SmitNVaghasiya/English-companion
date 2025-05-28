@@ -10,12 +10,12 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  String _username = '';
+  String _usernameOrEmail = '';
   String _password = '';
   bool _obscurePassword = true;
   bool _isLoading = false;
@@ -27,16 +27,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.login(_username, _password);
+      await authProvider.login(_usernameOrEmail, _password);
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Login successful!'),
           backgroundColor: AppColors.primaryColor,
         ),
       );
-      
+
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const VoiceChatScreen()),
@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Login failed: $e'),
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Padding(
@@ -71,11 +71,21 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 80),
-                const Center(
-                  child: AppLogo(size: 180),
-                ),
                 const SizedBox(height: 20),
+                Center(
+                  child: Container(
+                    height: 180,
+                    padding: const EdgeInsets.all(20),
+                    child: Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      size: 120,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Center(child: AppLogo(size: 100)),
+                const SizedBox(height: 10),
                 Text(
                   'Log in',
                   style: TextStyle(
@@ -84,23 +94,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: isDarkMode ? Colors.white : const Color(0xFF1A2A44),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  'Welcome to English Companion',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: isDarkMode ? Colors.grey[400] : const Color(0xFF64748B),
+                const SizedBox(height: 5),
+                const Center(
+                  child: Text(
+                    'Welcome to English Companion',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF64748B),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 const SizedBox(height: 30),
                 TextFormField(
                   decoration: const InputDecoration(
-                    labelText: 'Username or Mobile No.',
+                    labelText: 'Username or Email',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter your username or mobile number' : null,
-                  onSaved: (value) => _username = value ?? '',
+                  validator:
+                      (value) =>
+                          value!.isEmpty
+                              ? 'Please enter your username or email'
+                              : null,
+                  onSaved: (value) => _usernameOrEmail = value ?? '',
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
@@ -109,14 +125,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed:
+                          () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                     ),
                   ),
                   obscureText: _obscurePassword,
-                  validator: (value) =>
-                      value!.isEmpty ? 'Please enter your password' : null,
+                  validator:
+                      (value) =>
+                          value!.isEmpty ? 'Please enter your password' : null,
                   onSaved: (value) => _password = value ?? '',
                 ),
                 const SizedBox(height: 25),
@@ -133,15 +155,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       elevation: 2,
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -151,16 +176,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       "Don't have an account? ",
                       style: TextStyle(
-                        color: isDarkMode ? Colors.grey[400] : const Color(0xFF64748B),
+                        color:
+                            isDarkMode
+                                ? Colors.grey[400]
+                                : const Color(0xFF64748B),
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegistrationScreen(),
-                        ),
-                      ),
+                      onTap:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegistrationScreen(),
+                            ),
+                          ),
                       child: Text(
                         'Sign up',
                         style: TextStyle(

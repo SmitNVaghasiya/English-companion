@@ -11,6 +11,8 @@ import '../../core/constants/app_strings.dart';
 
 enum VoiceStatus { idle, recording, processing, speaking, error }
 
+enum ConversationMode { formal, informal, dailyLife, custom, beginnersHelper, professionalConversation, everydaySituations }
+
 class ChatState {
   final List<MessageModel> messages;
   final bool isLoading;
@@ -21,6 +23,7 @@ class ChatState {
   final String? connectionMessage;
   final VoiceStatus voiceStatus;
   final String? voiceStatusMessage;
+  final ConversationMode? conversationMode;
 
   ChatState({
     required this.messages,
@@ -32,6 +35,7 @@ class ChatState {
     required this.connectionMessage,
     required this.voiceStatus,
     required this.voiceStatusMessage,
+    this.conversationMode,
   });
 
   ChatState copyWith({
@@ -44,6 +48,7 @@ class ChatState {
     String? connectionMessage,
     VoiceStatus? voiceStatus,
     String? voiceStatusMessage,
+    ConversationMode? conversationMode,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -55,6 +60,7 @@ class ChatState {
       connectionMessage: connectionMessage ?? this.connectionMessage,
       voiceStatus: voiceStatus ?? this.voiceStatus,
       voiceStatusMessage: voiceStatusMessage ?? this.voiceStatusMessage,
+      conversationMode: conversationMode ?? this.conversationMode,
     );
   }
 }
@@ -71,13 +77,14 @@ class ChatProvider with ChangeNotifier {
     connectionMessage: null,
     voiceStatus: VoiceStatus.idle,
     voiceStatusMessage: null,
+    conversationMode: null,
   );
 
   ChatState get state => _state;
 
   static const int _maxRetries = 3;
   static const Duration _initialRetryDelay = Duration(seconds: 2);
-  static const Duration _requestTimeout = Duration(seconds: 30);
+  static const Duration _requestTimeout = Duration(seconds: 20);
   static const String _messagesKey = 'chat_messages';
 
   ChatProvider() {
@@ -89,12 +96,18 @@ class ChatProvider with ChangeNotifier {
   Future<void> _initialize() async {
     try {
       await _clearMessagesOnStart();
+      _setConnectionStatus(
+        null,
+        AppStrings.connecting,
+        'Initializing...',
+        false,
+      );
     } catch (e) {
       debugPrint('ChatProvider: Error initializing: $e');
       _setConnectionStatus(
         null,
         AppStrings.connectionFailed,
-        'Initialization failed',
+        'Initialization failed: $e',
         true,
       );
     }
@@ -121,6 +134,48 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('ChatProvider: Error saving messages: $e');
     }
+  }
+
+  void setConversationMode(ConversationMode mode) {
+    _state = _state.copyWith(conversationMode: mode);
+    _updateInitialMessageForMode(mode);
+    notifyListeners();
+  }
+
+  void _updateInitialMessageForMode(ConversationMode mode) {
+    String initialMessage;
+    switch (mode) {
+      case ConversationMode.formal:
+        initialMessage =
+            "Greetings! I am your English Companion for formal conversations. How may I assist you in a professional setting today?";
+        break;
+      case ConversationMode.informal:
+        initialMessage =
+            "Hey there! I'm your English Companion for casual chats. What's up? Let's talk like friends!";
+        break;
+      case ConversationMode.dailyLife:
+        initialMessage = AppStrings.dailyLifeGreeting;
+        break;
+      case ConversationMode.custom:
+        initialMessage =
+            "Hi! I'm ready to talk about any topic you choose. What would you like to discuss today?";
+        break;
+      case ConversationMode.beginnersHelper:
+        initialMessage = AppStrings.beginnersHelperGreeting;
+        break;
+      case ConversationMode.professionalConversation:
+        initialMessage = AppStrings.professionalConversationGreeting;
+        break;
+      case ConversationMode.everydaySituations:
+        initialMessage = AppStrings.everydaySituationsGreeting;
+        break;
+    }
+    final greetingMessage = MessageModel(
+      role: 'assistant',
+      content: initialMessage,
+      timestamp: DateTime.now(),
+    );
+    addMessage(greetingMessage);
   }
 
   void addMessage(MessageModel message) {
@@ -278,7 +333,6 @@ class ChatProvider with ChangeNotifier {
       VoiceStatus.error,
       message: 'Unable to record audio. Please check microphone permissions.',
     );
-    return;
   }
 
   Future<void> toggleVoiceRecording(BuildContext context) async {
@@ -300,7 +354,6 @@ class ChatProvider with ChangeNotifier {
           message: 'Processing your message...',
         );
 
-        // Prepare chat history
         final chatHistory =
             _state.messages
                 .map((msg) => {'role': msg.role, 'content': msg.content})

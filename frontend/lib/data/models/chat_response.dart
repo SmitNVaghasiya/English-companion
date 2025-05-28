@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class ChatResponse {
   final String status;
@@ -15,13 +15,17 @@ class ChatResponse {
 
   factory ChatResponse.fromMap(Map<String, dynamic> map) {
     try {
+      final status = map['status'] as String? ?? 'error';
+      final role = map['role'] as String? ?? 'assistant';
+      final content = map['content'] as String? ?? '';
+      final timestampStr = map['timestamp']?.toString();
+      final timestamp = DateTime.tryParse(timestampStr ?? '') ?? DateTime.now();
+
       return ChatResponse(
-        status: map['status'] as String? ?? 'error',
-        role: map['role'] as String? ?? 'assistant',
-        content: map['content'] as String? ?? '',
-        timestamp:
-            DateTime.tryParse(map['timestamp']?.toString() ?? '') ??
-            DateTime.now(),
+        status: status,
+        role: role,
+        content: content,
+        timestamp: timestamp,
       );
     } catch (e) {
       debugPrint('Error parsing ChatResponse: $e');

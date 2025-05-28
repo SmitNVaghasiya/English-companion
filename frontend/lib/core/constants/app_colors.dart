@@ -16,11 +16,6 @@ class AppColors {
   static const Color successGreen = Color(0xFF10B981);
 
   static Color getColor(Color color, {Color fallback = Colors.grey}) {
-    try {
-      return color;
-    } catch (e) {
-      debugPrint('Error accessing color: $e');
-      return fallback;
-    }
+    return color;
   }
 }

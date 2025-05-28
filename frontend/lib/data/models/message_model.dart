@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class MessageModel {
   final String role;
@@ -13,15 +13,15 @@ class MessageModel {
 
   factory MessageModel.fromMap(Map<String, dynamic> map) {
     try {
-      return MessageModel(
-        role: map['role'] as String? ?? 'assistant',
-        content: map['content'] as String? ?? '',
-        timestamp:
-            map['timestamp'] is DateTime
-                ? map['timestamp'] as DateTime
-                : DateTime.tryParse(map['timestamp']?.toString() ?? '') ??
-                    DateTime.now(),
-      );
+      final role = map['role'] as String? ?? 'assistant';
+      final content = map['content'] as String? ?? '';
+      final timestamp =
+          map['timestamp'] is DateTime
+              ? map['timestamp'] as DateTime
+              : DateTime.tryParse(map['timestamp']?.toString() ?? '') ??
+                  DateTime.now();
+
+      return MessageModel(role: role, content: content, timestamp: timestamp);
     } catch (e) {
       debugPrint('Error parsing MessageModel: $e');
       return MessageModel(

@@ -6,8 +6,8 @@ class GrammarTopic {
   final IconData icon;
   final String shortDescription;
   final String introduction;
-  final List<GrammarRule> rules;
-  final List<GrammarExample> examples;
+  final List<GrammarRule> Function() rules;
+  final List<GrammarExample> Function() examples;
 
   GrammarTopic({
     required this.id,
@@ -21,19 +21,28 @@ class GrammarTopic {
 
   factory GrammarTopic.fromJson(Map<String, dynamic> json) {
     return GrammarTopic(
-      id: json['id'],
-      title: json['title'],
-      icon: _getIconFromString(json['icon']),
-      shortDescription: json['shortDescription'],
-      introduction: json['introduction'],
+      id: json['id'] as String,
+      title: json['title'] as String,
+      icon: _getIconFromString(json['icon'] as String),
+      shortDescription: json['shortDescription'] as String,
+      introduction: json['introduction'] as String,
       rules:
-          (json['rules'] as List)
-              .map((rule) => GrammarRule.fromJson(rule))
-              .toList(),
+          () =>
+              (json['rules'] as List)
+                  .map(
+                    (rule) =>
+                        GrammarRule.fromJson(rule as Map<String, dynamic>),
+                  )
+                  .toList(),
       examples:
-          (json['examples'] as List)
-              .map((example) => GrammarExample.fromJson(example))
-              .toList(),
+          () =>
+              (json['examples'] as List)
+                  .map(
+                    (example) => GrammarExample.fromJson(
+                      example as Map<String, dynamic>,
+                    ),
+                  )
+                  .toList(),
     );
   }
 
@@ -68,7 +77,10 @@ class GrammarRule {
   GrammarRule({required this.title, required this.description});
 
   factory GrammarRule.fromJson(Map<String, dynamic> json) {
-    return GrammarRule(title: json['title'], description: json['description']);
+    return GrammarRule(
+      title: json['title'] as String,
+      description: json['description'] as String,
+    );
   }
 }
 
@@ -87,10 +99,10 @@ class GrammarExample {
 
   factory GrammarExample.fromJson(Map<String, dynamic> json) {
     return GrammarExample(
-      title: json['title'] ?? '',
-      correct: json['correct'],
-      incorrect: json['incorrect'] ?? '',
-      explanation: json['explanation'] ?? '',
+      title: json['title'] as String? ?? '',
+      correct: json['correct'] as String,
+      incorrect: json['incorrect'] as String? ?? '',
+      explanation: json['explanation'] as String? ?? '',
     );
   }
 }

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:english_companion/core/constants/app_colors.dart';
-import 'package:english_companion/data/models/grammar_topic.dart';
-import 'package:english_companion/data/services/grammar_service.dart';
+import '../../core/constants/app_colors.dart';
+import '../../data/models/grammar_topic.dart';
+import '../../data/services/grammar_service.dart';
+import 'practice_sessions_screen.dart';
 
 class GrammarTopicScreen extends StatefulWidget {
   final String topicId;
 
-  const GrammarTopicScreen({
-    super.key,
-    required this.topicId,
-  });
+  const GrammarTopicScreen({super.key, required this.topicId});
 
   @override
   State<GrammarTopicScreen> createState() => _GrammarTopicScreenState();
@@ -18,11 +16,18 @@ class GrammarTopicScreen extends StatefulWidget {
 class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
   late Future<GrammarTopic> _topicFuture;
   final GrammarService _grammarService = GrammarService();
+  List<GrammarRule>? _rules;
+  List<GrammarExample>? _examples;
 
   @override
   void initState() {
     super.initState();
     _topicFuture = _grammarService.getGrammarTopic(widget.topicId);
+  }
+
+  Future<void> _loadRulesAndExamples(GrammarTopic topic) async {
+    _rules ??= topic.rules();
+    _examples ??= topic.examples();
   }
 
   @override
@@ -58,18 +63,17 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isDark
-                ? [const Color(0xFF1A1A1A), const Color(0xFF0D0D0D)]
-                : [Colors.white, const Color(0xFFF5F5F5)],
+            colors:
+                isDark
+                    ? [const Color(0xFF1A1A1A), const Color(0xFF0D0D0D)]
+                    : [Colors.white, const Color(0xFFF5F5F5)],
           ),
         ),
         child: FutureBuilder<GrammarTopic>(
           future: _topicFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const Center(child: CircularProgressIndicator());
             }
 
             if (snapshot.hasError) {
@@ -77,11 +81,7 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: Colors.red[300],
-                      size: 60,
-                    ),
+                    Icon(Icons.error_outline, color: Colors.red[300], size: 60),
                     const SizedBox(height: 16),
                     Text(
                       'Error loading topic',
@@ -91,7 +91,9 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                     TextButton(
                       onPressed: () {
                         setState(() {
-                          _topicFuture = _grammarService.getGrammarTopic(widget.topicId);
+                          _topicFuture = _grammarService.getGrammarTopic(
+                            widget.topicId,
+                          );
                         });
                       },
                       child: const Text('Try Again'),
@@ -102,6 +104,7 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
             }
 
             final topic = snapshot.data!;
+            _loadRulesAndExamples(topic); // Load rules and examples lazily
 
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
@@ -113,9 +116,10 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.primaryColor.withOpacity(0.15)
-                          : AppColors.primaryColor.withOpacity(0.1),
+                      color:
+                          isDark
+                              ? AppColors.primaryColor.withOpacity(0.15)
+                              : AppColors.primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -148,7 +152,8 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                               Text(
                                 topic.shortDescription,
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: isDark ? Colors.white70 : Colors.black54,
+                                  color:
+                                      isDark ? Colors.white70 : Colors.black54,
                                 ),
                               ),
                             ],
@@ -157,9 +162,9 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Introduction
                   Text(
                     'Introduction',
@@ -176,9 +181,9 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                       height: 1.5,
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Rules
                   Text(
                     'Rules',
@@ -188,11 +193,15 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
-                  ...topic.rules.map((rule) => _buildRuleCard(context, rule, isDark)).toList(),
-                  
+                  if (_rules != null)
+                    ..._rules!.map(
+                      (rule) => _buildRuleCard(context, rule, isDark),
+                    )
+                  else
+                    const Center(child: CircularProgressIndicator()),
+
                   const SizedBox(height: 24),
-                  
+
                   // Examples
                   Text(
                     'Examples',
@@ -202,11 +211,15 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
-                  ...topic.examples.map((example) => _buildExampleCard(context, example, isDark)).toList(),
-                  
+                  if (_examples != null)
+                    ..._examples!.map(
+                      (example) => _buildExampleCard(context, example, isDark),
+                    )
+                  else
+                    const Center(child: CircularProgressIndicator()),
+
                   const SizedBox(height: 24),
-                  
+
                   // Practice Section
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -248,18 +261,24 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: () {
-                            // TODO: Navigate to practice exercises
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Practice exercises coming soon!'),
-                                duration: Duration(seconds: 2),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => PracticeSessionsScreen(
+                                      topicId: topic.id,
+                                      topicTitle: topic.title,
+                                    ),
                               ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryColor,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 24,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -276,7 +295,7 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 40),
                 ],
               ),
@@ -289,7 +308,7 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
 
   Widget _buildRuleCard(BuildContext context, GrammarRule rule, bool isDark) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -324,16 +343,22 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
     );
   }
 
-  Widget _buildExampleCard(BuildContext context, GrammarExample example, bool isDark) {
+  Widget _buildExampleCard(
+    BuildContext context,
+    GrammarExample example,
+    bool isDark,
+  ) {
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
+      width: double.infinity, // Make container take full width
       decoration: BoxDecoration(
-        color: isDark 
-            ? AppColors.primaryColor.withOpacity(0.1) 
-            : AppColors.primaryColor.withOpacity(0.05),
+        color:
+            isDark
+                ? AppColors.primaryColor.withOpacity(0.1)
+                : AppColors.primaryColor.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: AppColors.primaryColor.withOpacity(0.2),

@@ -13,18 +13,18 @@ class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
 
   @override
-  _RegistrationScreenState createState() => _RegistrationScreenState();
+  State<RegistrationScreen> createState() => RegistrationScreenState();
 }
 
-class _RegistrationScreenState extends State<RegistrationScreen> {
+class RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
-  final _mobileNoController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _otpController = TextEditingController();
 
   String _username = '';
-  String _mobileNo = '';
+  String _email = '';
   String _password = '';
   String _otp = '';
   bool _obscurePassword = true;
@@ -34,7 +34,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _mobileNoController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _otpController.dispose();
     super.dispose();
@@ -48,14 +48,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.sendOtp('+91$_mobileNo');
-      
+      await authProvider.sendOtp(_email);
+
       if (!mounted) return;
       setState(() {
         _isOtpSent = true;
         _isLoading = false;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('OTP sent successfully!'),
@@ -65,7 +65,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to send OTP: $e'),
@@ -82,17 +82,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // First verify OTP
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.verifyOtp('+91$_mobileNo', _otp);
+      await authProvider.verifyOtp(_email, _otp);
 
-      // Then register the user
       final response = await http.post(
         Uri.parse('${EnvConfig.backendUrl}/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': _username,
-          'mobileNo': '+91$_mobileNo',
+          'email': _email,
           'password': _password,
         }),
       );
@@ -105,7 +103,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           token: data['access_token'],
           userId: data['id'],
           username: _username,
-          mobileNo: '+91$_mobileNo',
+          email: _email,
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,18 +112,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             backgroundColor: AppColors.primaryColor,
           ),
         );
-        
+
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const VoiceChatScreen()),
           (route) => false,
         );
       } else {
-        final errorDetail = jsonDecode(response.body)['detail'] ?? response.body;
-        if (errorDetail == "Mobile number already exists") {
+        final errorDetail =
+            jsonDecode(response.body)['detail'] ?? response.body;
+        if (errorDetail == "Email already exists") {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Mobile number already registered. Please login.'),
+              content: Text('Email already registered. Please login.'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -152,10 +151,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -167,7 +163,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -192,17 +188,27 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              const Center(
-                child: AppLogo(size: 150),
+              const SizedBox(height: 10),
+              Center(
+                child: Container(
+                  height: 150,
+                  padding: const EdgeInsets.all(20),
+                  child: Icon(
+                    Icons.person_add_alt_1_rounded,
+                    size: 100,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
+              const Center(child: AppLogo(size: 80)),
+              const SizedBox(height: 10),
               Text(
                 'Sign up',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: isDarkMode ? Colors.white : const Color(0xFF1A2A44),
+                  color: const Color(0xFF1A2A44), // Keep consistent color
                 ),
               ),
               const SizedBox(height: 10),
@@ -210,7 +216,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 'Create your English Companion account',
                 style: TextStyle(
                   fontSize: 16,
-                  color: isDarkMode ? Colors.grey[400] : const Color(0xFF64748B),
+                  color:
+                      isDarkMode ? Colors.grey[400] : const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(height: 30),
@@ -222,38 +229,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 enabled: !_isOtpSent,
                 style: TextStyle(
-                  color: _isOtpSent 
-                      ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
-                      : null,
+                  color:
+                      _isOtpSent
+                          ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
+                          : null,
                 ),
-                validator: (value) => value!.isEmpty ? 'Please enter a username' : null,
+                validator:
+                    (value) =>
+                        value!.isEmpty ? 'Please enter a username' : null,
                 onSaved: (value) => _username = value!,
               ),
               const SizedBox(height: 20),
               TextFormField(
-                controller: _mobileNoController,
+                controller: _emailController,
                 decoration: const InputDecoration(
-                  labelText: 'Mobile No. (e.g., 9876543210)',
-                  prefixIcon: Icon(Icons.phone_android),
-                  prefixText: '+91 ',
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
+                keyboardType: TextInputType.emailAddress,
                 enabled: !_isOtpSent,
                 style: TextStyle(
-                  color: _isOtpSent 
-                      ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
-                      : null,
+                  color:
+                      _isOtpSent
+                          ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
+                          : null,
                 ),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (value) {
-                  if (value!.isEmpty) return 'Please enter your mobile number';
-                  if (!RegExp(r'^\d{10}$').hasMatch(value)) {
-                    return 'Enter a valid 10-digit mobile number';
+                  if (value!.isEmpty) return 'Please enter your email';
+                  if (!RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  ).hasMatch(value)) {
+                    return 'Enter a valid email address';
                   }
                   return null;
                 },
-                onSaved: (value) => _mobileNo = value!,
+                onSaved: (value) => _email = value!,
               ),
               const SizedBox(height: 20),
               TextFormField(
@@ -263,17 +273,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    onPressed:
+                        () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                   ),
                 ),
                 obscureText: _obscurePassword,
                 enabled: !_isOtpSent,
                 style: TextStyle(
-                  color: _isOtpSent 
-                      ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
-                      : null,
+                  color:
+                      _isOtpSent
+                          ? (isDarkMode ? Colors.grey[600] : Colors.grey[400])
+                          : null,
                 ),
                 validator: (value) {
                   if (value!.isEmpty) return 'Please enter your password';
@@ -312,26 +328,28 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 55,
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                        onPressed: _isOtpSent ? _verifyOtpAndRegister : _sendOtp,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : ElevatedButton(
+                          onPressed:
+                              _isOtpSent ? _verifyOtpAndRegister : _sendOtp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
                           ),
-                          elevation: 2,
-                        ),
-                        child: Text(
-                          _isOtpSent ? 'Verify OTP & Register' : 'Send OTP',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          child: Text(
+                            _isOtpSent ? 'Verify OTP & Register' : 'Send OTP',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -340,7 +358,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   Text(
                     'Already have an account? ',
                     style: TextStyle(
-                      color: isDarkMode ? Colors.grey[400] : const Color(0xFF64748B),
+                      color:
+                          isDarkMode
+                              ? Colors.grey[400]
+                              : const Color(0xFF64748B),
                     ),
                   ),
                   GestureDetector(

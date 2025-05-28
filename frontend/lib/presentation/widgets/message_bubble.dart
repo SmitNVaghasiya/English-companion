@@ -10,110 +10,90 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isUser = message.role == 'user';
-    final bool isTranscription = message.role == 'user_transcription';
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final isUser = message.role == 'user';
+    final isSystem = message.role == 'system';
 
-    String timestamp = '';
-    try {
-      timestamp =
-          DateFormat('HH:mm').format(message.timestamp);
-    } catch (e) {
-      debugPrint('Error formatting timestamp: $e');
-      timestamp = '';
-    }
-
-    return AnimatedOpacity(
-      opacity: 1.0,
-      duration: const Duration(milliseconds: 300),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-        child: Row(
-          mainAxisAlignment:
-              isUser || isTranscription
-                  ? MainAxisAlignment.end
-                  : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!isUser && !isTranscription) const SizedBox(width: 4),
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.78,
-              ),
-              child: IntrinsicWidth(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        isUser
-                            ? AppColors.telegramBlue
-                            : isTranscription
-                            ? (isDark ? Colors.grey[700] : Colors.grey[200])
-                            : (isDark
-                                ? AppColors.lightBlack
-                                : Colors.grey[100]),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      if (!isUser && !isTranscription && isDark)
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
-                        ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          message.content,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color:
-                                isUser
-                                    ? Colors.white
-                                    : (isDark
-                                        ? Colors.grey[100]
-                                        : Colors.black87),
-                            height: 1.4,
-                            fontStyle:
-                                isTranscription
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                          ),
-                        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 12.0),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment:
+                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (isSystem)
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.red[900] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDark ? Colors.red[800]! : Colors.red[200]!,
+                        width: 1,
                       ),
-                      if (timestamp.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          timestamp,
-                          style: TextStyle(
-                            fontSize: 10,
-                            height: 1.2,
-                            letterSpacing: 0.2,
-                            color:
-                                isUser
-                                    ? Colors.white.withOpacity(0.85)
-                                    : (isDark
-                                        ? Colors.grey[400]
-                                        : Colors.grey[600]),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
+                    child: Text(
+                      message.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isDark ? Colors.white : Colors.red[900],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isUser
+                              ? AppColors.telegramBlue
+                              : isDark
+                              ? AppColors.darkGray
+                              : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      message.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color:
+                            isUser
+                                ? Colors.white
+                                : isDark
+                                ? Colors.white
+                                : Colors.black87,
+                      ),
+                    ),
                   ),
                 ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (!isSystem)
+            Text(
+              DateFormat('HH:mm').format(message.timestamp),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark ? Colors.white60 : Colors.black54,
+                fontSize: 12,
               ),
             ),
-            if (!isUser && !isTranscription) const SizedBox(width: 4),
-          ],
-        ),
+        ],
       ),
     );
   }

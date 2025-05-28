@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
-import 'package:english_companion/core/constants/app_colors.dart';
-import 'package:english_companion/core/theme/theme_provider.dart';
-import 'package:english_companion/presentation/screens/grammar_topic_screen.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/theme/theme_provider.dart';
+import 'grammar_topic_screen.dart';
 
 class GrammarScreen extends StatefulWidget {
   const GrammarScreen({super.key});
@@ -12,7 +12,8 @@ class GrammarScreen extends StatefulWidget {
   State<GrammarScreen> createState() => _GrammarScreenState();
 }
 
-class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateMixin {
+class _GrammarScreenState extends State<GrammarScreen>
+    with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
 
@@ -59,7 +60,8 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
           extendBodyBehindAppBar: true,
           appBar: AppBar(
             elevation: 0,
-            backgroundColor: isDark ? Colors.black12 : Colors.white.withOpacity(0.1),
+            backgroundColor:
+                isDark ? Colors.black12 : Colors.white.withOpacity(0.1),
             title: const Text(
               'Grammar Lessons',
               style: TextStyle(
@@ -72,7 +74,10 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
               IconButton(
                 icon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (Widget child, Animation<double> animation) {
+                  transitionBuilder: (
+                    Widget child,
+                    Animation<double> animation,
+                  ) {
                     return RotationTransition(
                       turns: animation,
                       child: ScaleTransition(scale: animation, child: child),
@@ -85,7 +90,8 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                   ),
                 ),
                 onPressed: () => themeProvider.toggleTheme(),
-                tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+                tooltip:
+                    isDark ? 'Switch to light mode' : 'Switch to dark mode',
               ),
               const SizedBox(width: 8),
             ],
@@ -95,9 +101,10 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: isDark
-                    ? [const Color(0xFF1A1A1A), const Color(0xFF0D0D0D)]
-                    : [Colors.white, const Color(0xFFF5F5F5)],
+                colors:
+                    isDark
+                        ? [const Color(0xFF1A1A1A), const Color(0xFF0D0D0D)]
+                        : [Colors.white, const Color(0xFFF5F5F5)],
               ),
             ),
             child: SafeArea(
@@ -145,14 +152,19 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                             const SizedBox(height: 12),
                             Container(
                               padding: EdgeInsets.symmetric(
-                                horizontal: MediaQuery.of(context).size.width > 360 ? 12 : 8,
+                                horizontal:
+                                    MediaQuery.of(context).size.width > 360
+                                        ? 12
+                                        : 8,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
                                 color: AppColors.primaryColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: AppColors.primaryColor.withOpacity(0.3),
+                                  color: AppColors.primaryColor.withOpacity(
+                                    0.3,
+                                  ),
                                   width: 1,
                                 ),
                               ),
@@ -169,7 +181,8 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                       ),
                     ),
                     SizedBox(
-                      height: MediaQuery.of(context).size.height > 700 ? 32 : 24,
+                      height:
+                          MediaQuery.of(context).size.height > 700 ? 32 : 24,
                     ),
                     Text(
                       'Grammar Topics',
@@ -186,7 +199,10 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                           crossAxisCount: 2,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
-                          childAspectRatio: MediaQuery.of(context).size.width > 400 ? 0.8 : 0.7,
+                          childAspectRatio:
+                              MediaQuery.of(context).size.width > 400
+                                  ? 0.8
+                                  : 0.7,
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.only(bottom: 16),
                           children: [
@@ -195,35 +211,48 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                               title: 'Parts of Speech',
                               icon: Icons.category_outlined,
                               description: 'Nouns, verbs, adjectives, and more',
-                              onTap: () => _navigateToTopic(context, 'parts_of_speech'),
+                              onTap:
+                                  () => _navigateToTopic(
+                                    context,
+                                    'parts_of_speech',
+                                  ),
                             ),
                             _buildGrammarTopicCard(
                               context,
                               title: 'Verb Tenses',
                               icon: Icons.access_time_outlined,
                               description: 'Past, present, and future tenses',
-                              onTap: () => _navigateToTopic(context, 'verb_tenses'),
+                              onTap:
+                                  () =>
+                                      _navigateToTopic(context, 'verb_tenses'),
                             ),
                             _buildGrammarTopicCard(
                               context,
                               title: 'Sentence Structure',
                               icon: Icons.format_align_left_outlined,
                               description: 'Building correct English sentences',
-                              onTap: () => _navigateToTopic(context, 'sentence_structure'),
+                              onTap:
+                                  () => _navigateToTopic(
+                                    context,
+                                    'sentence_structure',
+                                  ),
                             ),
                             _buildGrammarTopicCard(
                               context,
                               title: 'Articles',
                               icon: Icons.article_outlined,
                               description: 'A, an, and the',
-                              onTap: () => _navigateToTopic(context, 'articles'),
+                              onTap:
+                                  () => _navigateToTopic(context, 'articles'),
                             ),
                             _buildGrammarTopicCard(
                               context,
                               title: 'Prepositions',
                               icon: Icons.place_outlined,
                               description: 'In, on, at, and more',
-                              onTap: () => _navigateToTopic(context, 'prepositions'),
+                              onTap:
+                                  () =>
+                                      _navigateToTopic(context, 'prepositions'),
                             ),
                             _buildGrammarTopicCard(
                               context,
@@ -236,15 +265,23 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
                               context,
                               title: 'Conditionals',
                               icon: Icons.compare_arrows_outlined,
-                              description: 'If clauses and conditional sentences',
-                              onTap: () => _navigateToTopic(context, 'conditionals'),
+                              description:
+                                  'If clauses and conditional sentences',
+                              onTap:
+                                  () =>
+                                      _navigateToTopic(context, 'conditionals'),
                             ),
                             _buildGrammarTopicCard(
                               context,
                               title: 'Passive Voice',
                               icon: Icons.swap_horiz_outlined,
-                              description: 'When the subject receives the action',
-                              onTap: () => _navigateToTopic(context, 'passive_voice'),
+                              description:
+                                  'When the subject receives the action',
+                              onTap:
+                                  () => _navigateToTopic(
+                                    context,
+                                    'passive_voice',
+                                  ),
                             ),
                           ],
                         ),
@@ -282,7 +319,8 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
 
     return Card(
       elevation: 5,
-      shadowColor: isDark ? AppColors.primaryColor.withOpacity(0.3) : Colors.black26,
+      shadowColor:
+          isDark ? AppColors.primaryColor.withOpacity(0.3) : Colors.black26,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
@@ -293,9 +331,10 @@ class _GrammarScreenState extends State<GrammarScreen> with TickerProviderStateM
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: isDark
-                  ? [const Color(0xFF2A2A2A), const Color(0xFF1A1A1A)]
-                  : [Colors.white, const Color(0xFFF8F8F8)],
+              colors:
+                  isDark
+                      ? [const Color(0xFF2A2A2A), const Color(0xFF1A1A1A)]
+                      : [Colors.white, const Color(0xFFF8F8F8)],
             ),
           ),
           child: Stack(

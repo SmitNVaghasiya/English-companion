@@ -7,7 +7,6 @@ import 'core/theme/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/chat_provider.dart';
 import 'presentation/screens/home_screen.dart';
-import 'package:flutter/foundation.dart';
 
 void main() async {
   try {

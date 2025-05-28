@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:english_companion/core/constants/app_colors.dart';
+import '../../core/constants/app_colors.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -43,7 +43,7 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
+                const Text(
                   'user@example.com',
                   style: TextStyle(
                     color: Colors.white70,
@@ -141,7 +141,6 @@ class AppDrawer extends StatelessWidget {
   void _navigateAndClose(BuildContext context, String route) {
     try {
       Navigator.pop(context);
-      // Placeholder for navigation logic
       debugPrint('Navigating to $route');
     } catch (e) {
       debugPrint('Error navigating to $route: $e');

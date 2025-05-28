@@ -4,15 +4,12 @@ import '../../core/constants/app_colors.dart';
 class AppLogo extends StatelessWidget {
   final double size;
 
-  const AppLogo({
-    super.key,
-    this.size = 150,
-  });
+  const AppLogo({super.key, this.size = 150});
 
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       height: size,
       width: size,

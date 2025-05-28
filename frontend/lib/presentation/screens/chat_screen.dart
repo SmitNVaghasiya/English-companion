@@ -5,6 +5,7 @@ import '../providers/chat_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/chat_input_field.dart';
 import '../widgets/message_bubble.dart';
+import 'conversation_mode_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final bool initialVoiceMode;
@@ -40,10 +41,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final chatProvider = context.read<ChatProvider>();
       chatProvider.clearMessages();
       chatProvider.testConnection(context);
-      _addWelcomeMessage();
 
       if (widget.initialVoiceMode) {
         chatProvider.toggleVoiceMode(context);
+      } else {
+        _navigateToConversationModeScreen();
       }
     });
 
@@ -52,6 +54,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _scrollToBottom();
       }
     });
+  }
+
+  void _navigateToConversationModeScreen() {
+    final chatProvider = context.read<ChatProvider>();
+    if (chatProvider.state.conversationMode == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) =>
+                  ConversationModeScreen(isVoiceMode: widget.initialVoiceMode),
+        ),
+      );
+    }
   }
 
   void _scrollToBottom() {
@@ -72,21 +88,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void _stopTypingAnimation() {
     _typingAnimationController.stop();
-  }
-
-  void _addWelcomeMessage() {
-    final chatProvider = context.read<ChatProvider>();
-    if (chatProvider.state.messages.isEmpty) {
-      chatProvider.addMessage(
-        MessageModel(
-          content:
-              'Hello! I\'m your English learning assistant. How can I help you today?',
-          role: 'assistant',
-          timestamp: DateTime.now(),
-        ),
-      );
-      _scrollToBottom();
-    }
   }
 
   @override

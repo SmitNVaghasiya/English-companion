@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 
 class TypingDot extends StatelessWidget {
-  final double size;
-  final Color color;
+  final Animation<double> animation;
 
-  const TypingDot({super.key, this.size = 8.0, this.color = Colors.grey});
+  const TypingDot({super.key, required this.animation});
 
   @override
   Widget build(BuildContext context) {
-    try {
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
-    } catch (e) {
-      debugPrint('Error rendering TypingDot: $e');
-      return const SizedBox.shrink();
-    }
+    return FadeTransition(
+      opacity: animation,
+      child: Container(
+        width: 8,
+        height: 8,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
   }
 }

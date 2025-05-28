@@ -6,12 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/config/api_config.dart';
 
 class ChatService {
   String? _baseUrl;
   bool _isRecording = false;
-  String? _currentSessionId;
   final AudioRecorder _recorder = AudioRecorder();
   final FlutterTts _tts = FlutterTts();
   String? _currentAudioPath;
@@ -52,7 +52,7 @@ class ChatService {
       debugPrint('ChatService: Base URL not initialized');
       return {
         'status': 'error',
-        'content': 'Server connection not initialized. Please try again later.',
+        'content': 'Server connection not initialized.',
       };
     }
 
@@ -71,12 +71,11 @@ class ChatService {
           'content': data['content'] ?? '',
           'timestamp': data['timestamp'] ?? DateTime.now().toIso8601String(),
         };
-      } else {
-        return {
-          'status': 'error',
-          'content': 'Failed to send message: ${response.statusCode}',
-        };
       }
+      return {
+        'status': 'error',
+        'content': 'Failed to send message: ${response.statusCode}',
+      };
     } catch (e) {
       debugPrint('ChatService: Error sending query: $e');
       return {'status': 'error', 'content': 'Network error: $e'};
@@ -89,13 +88,7 @@ class ChatService {
         debugPrint('ChatService: Base URL not initialized');
         return false;
       }
-      final isConnected = await ApiConfig.testConnectionWithUrl(_baseUrl!);
-      if (!isConnected) {
-        debugPrint(
-          'ChatService: Connection test failed: Could not connect to server at $_baseUrl',
-        );
-      }
-      return isConnected;
+      return await ApiConfig.testConnectionWithUrl(_baseUrl!);
     } catch (e) {
       debugPrint('ChatService: Connection test failed with error: $e');
       return false;
@@ -106,6 +99,11 @@ class ChatService {
     try {
       if (_isRecording) {
         return {'status': 'error', 'message': 'Recording already in progress'};
+      }
+
+      final micStatus = await Permission.microphone.request();
+      if (!micStatus.isGranted) {
+        return {'status': 'error', 'message': 'Microphone permission denied'};
       }
 
       final dir = await getTemporaryDirectory();
@@ -137,28 +135,21 @@ class ChatService {
       debugPrint('ChatService: Base URL not initialized');
       return {
         'status': 'error',
-        'message': 'Server connection not initialized. Please try again later.',
+        'message': 'Server connection not initialized.',
       };
     }
 
     try {
-      debugPrint('ChatService: Stopping recorder...');
       await _recorder.stop();
       _isRecording = false;
-      debugPrint('ChatService: Recorder stopped successfully');
 
       final file = File(_currentAudioPath!);
       if (!await file.exists()) {
-        debugPrint('ChatService: Audio file not found at ${file.path}');
         return {'status': 'error', 'message': 'Audio file not found'};
       }
 
       final fileSize = await file.length();
-      debugPrint('ChatService: Audio file size: ${fileSize} bytes');
       if (fileSize < 100) {
-        debugPrint(
-          'ChatService: Audio file is too small, likely empty or corrupted',
-        );
         return {
           'status': 'error',
           'message': 'Audio recording is too short or empty',
@@ -166,33 +157,20 @@ class ChatService {
       }
 
       final endpoint = '$_baseUrl${ApiConfig.voiceChatEndpoint}';
-      debugPrint('ChatService: Sending audio to endpoint: $endpoint');
-
       final request = http.MultipartRequest('POST', Uri.parse(endpoint));
-
-      // Add chat history
       request.fields['history'] = jsonEncode(chatHistory);
-      debugPrint('ChatService: Added history to request: $chatHistory');
-
-      // Add audio file
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
-      debugPrint('ChatService: Added file to request with name: file');
 
-      debugPrint('ChatService: Sending request...');
       final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 20),
         onTimeout: () {
-          throw TimeoutException('Request timed out after 30 seconds');
+          throw TimeoutException('Request timed out after 20 seconds');
         },
-      );
-      debugPrint(
-        'ChatService: Got response with status: ${streamedResponse.statusCode}',
       );
 
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        debugPrint('ChatService: Successfully processed voice recording');
         final responseData = jsonDecode(response.body);
         return {
           'status': 'success',
@@ -202,17 +180,12 @@ class ChatService {
           'timestamp':
               responseData['timestamp'] ?? DateTime.now().toIso8601String(),
         };
-      } else {
-        debugPrint(
-          'ChatService: Server returned error status: ${response.statusCode}',
-        );
-        debugPrint('ChatService: Response body: ${response.body}');
-        return {
-          'status': 'error',
-          'message':
-              'Failed to process voice recording: ${response.statusCode} - ${response.body}',
-        };
       }
+      return {
+        'status': 'error',
+        'message':
+            'Failed to process voice recording: ${response.statusCode} - ${response.body}',
+      };
     } catch (e) {
       debugPrint('ChatService: Error stopping voice recording: $e');
       return {'status': 'error', 'message': 'Network error: $e'};
@@ -256,9 +229,8 @@ class ChatService {
         final file = File('${tempDir.path}/response_audio.mp3');
         await file.writeAsBytes(response.bodyBytes);
         return file;
-      } else {
-        throw Exception('Failed to get audio response: ${response.statusCode}');
       }
+      throw Exception('Failed to get audio response: ${response.statusCode}');
     } catch (e) {
       debugPrint('ChatService: Error getting audio response: $e');
       throw Exception('Network error: $e');

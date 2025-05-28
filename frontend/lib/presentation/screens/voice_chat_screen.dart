@@ -32,13 +32,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
 
   Future<void> _initialize() async {
     try {
-      // Initialize TTS
       await _flutterTts.setLanguage('en-US');
       await _flutterTts.setSpeechRate(0.5);
       await _flutterTts.setVolume(1.0);
       await _flutterTts.setPitch(1.0);
 
-      // Request microphone permission
       final status = await Permission.microphone.request();
       if (status.isGranted) {
         setState(() {

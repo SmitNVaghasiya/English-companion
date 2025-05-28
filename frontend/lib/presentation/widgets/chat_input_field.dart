@@ -290,93 +290,89 @@ class _ChatInputFieldState extends State<ChatInputField>
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               transitionBuilder: (Widget child, Animation<double> animation) {
-                return SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(1.0, 0.0),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                    ),
+                    child: child,
                   ),
-                  child: child,
                 );
               },
-              child:
-                  widget.isVoiceMode
-                      ? Container(
-                        key: const ValueKey('voice_container'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 12.0,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (statusMessage.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 10.0),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
+              child: widget.isVoiceMode
+                  ? Container(
+                      key: const ValueKey('voice_container'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 12.0,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (statusMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 10.0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.primaryColor.withOpacity(0.1)
+                                      : AppColors.primaryColor.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppColors.primaryColor.withOpacity(0.3),
+                                    width: 1,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        isDark
-                                            ? AppColors.primaryColor
-                                                .withOpacity(0.1)
-                                            : AppColors.primaryColor
-                                                .withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: AppColors.primaryColor.withOpacity(
-                                        0.3,
-                                      ),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (widget.isRecording &&
-                                          !provider.state.isMuted)
-                                        FadeTransition(
-                                          opacity: _waveAnimation,
-                                          child: Row(
-                                            children: List.generate(
-                                              5,
-                                              (index) => Container(
-                                                width: 8,
-                                                height: 8 + (index * 4),
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 4,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.primaryColor,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (widget.isRecording &&
+                                        !provider.state.isMuted)
+                                      FadeTransition(
+                                        opacity: _waveAnimation,
+                                        child: Row(
+                                          children: List.generate(
+                                            5,
+                                            (index) => Container(
+                                              width: 8,
+                                              height: 8 + (index * 4),
+                                              margin:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 4,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primaryColor,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        statusMessage,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          color:
-                                              isDark
-                                                  ? Colors.grey[200]
-                                                  : Colors.grey[800],
-                                        ),
-                                        textAlign: TextAlign.center,
                                       ),
-                                    ],
-                                  ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      statusMessage,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: isDark
+                                            ? Colors.grey[200]
+                                            : Colors.grey[800],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
                                 ),
                               ),
+                            ),
                             if (lastUserMessage.isNotEmpty ||
                                 lastAssistantMessage.isNotEmpty)
                               Padding(
@@ -384,17 +380,13 @@ class _ChatInputFieldState extends State<ChatInputField>
                                 child: Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color:
-                                        isDark
-                                            ? Colors.grey[800]!.withOpacity(0.3)
-                                            : Colors.grey[200]!.withOpacity(
-                                              0.5,
-                                            ),
+                                    color: isDark
+                                        ? Colors.grey[800]!.withOpacity(0.3)
+                                        : Colors.grey[200]!.withOpacity(0.5),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       if (lastUserMessage.isNotEmpty) ...[
                                         Text(
@@ -402,20 +394,18 @@ class _ChatInputFieldState extends State<ChatInputField>
                                           style: TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
-                                            color:
-                                                isDark
-                                                    ? Colors.grey[400]
-                                                    : Colors.grey[700],
+                                            color: isDark
+                                                ? Colors.grey[400]
+                                                : Colors.grey[700],
                                           ),
                                         ),
                                         Text(
                                           lastUserMessage,
                                           style: TextStyle(
                                             fontSize: 13,
-                                            color:
-                                                isDark
-                                                    ? Colors.grey[300]
-                                                    : Colors.grey[800],
+                                            color: isDark
+                                                ? Colors.grey[300]
+                                                : Colors.grey[800],
                                           ),
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
@@ -499,7 +489,9 @@ class _ChatInputFieldState extends State<ChatInputField>
                           ],
                         ),
                       )
-                      : const SizedBox(),
+                      : const SizedBox(
+                      key: ValueKey('empty_container'),
+                    ),
             ),
           ],
         ),

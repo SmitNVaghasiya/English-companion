@@ -6,7 +6,7 @@ class ApiService {
   final String baseUrl;
   final int _maxRetries = 3;
   final Duration _initialRetryDelay = Duration(seconds: 1);
-  final Duration _httpTimeout = Duration(seconds: 30);
+  final Duration _httpTimeout = Duration(seconds: 20);
 
   ApiService(String baseUrl)
     : baseUrl =
@@ -43,18 +43,15 @@ class ApiService {
         } else if (response.statusCode >= 400 && response.statusCode < 500) {
           final errorData = jsonDecode(response.body);
           throw Exception(errorData['detail'] ?? 'Bad request');
-        } else if (response.statusCode >= 500) {
-          throw Exception('Server error. Please try again later.');
         } else {
-          throw Exception('Unexpected error occurred');
+          throw Exception('Server error. Please try again later.');
         }
       } catch (e) {
         debugPrint('ApiService: Attempt $attempt failed: $e');
         if (attempt == _maxRetries) {
-          debugPrint('ApiService: Max retries reached. Throwing error: $e');
           rethrow;
         }
-        await Future.delayed(_initialRetryDelay * (1 << (attempt - 1)));
+        await Future.delayed(_initialRetryDelay * (attempt * 2));
       }
     }
     throw Exception('Unexpected error in request handling');
@@ -69,7 +66,8 @@ class ApiService {
       try {
         final response = await http
             .get(Uri.parse(url), headers: {'Content-Type': 'application/json'})
-            .timeout(Duration(seconds: 30));
+            .timeout(_httpTimeout);
+
         debugPrint('ApiService: Response status: ${response.statusCode}');
         debugPrint('ApiService: Response body: ${response.body}');
 
@@ -80,10 +78,9 @@ class ApiService {
       } catch (e) {
         debugPrint('ApiService: Attempt $attempt failed: $e');
         if (attempt == _maxRetries) {
-          debugPrint('ApiService: Max retries reached. Throwing error: $e');
           throw Exception('Network error: $e');
         }
-        await Future.delayed(_initialRetryDelay * (1 << (attempt - 1)));
+        await Future.delayed(_initialRetryDelay * (attempt * 2));
       }
     }
     throw Exception('Unexpected error in request handling');
