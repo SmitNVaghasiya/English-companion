@@ -189,13 +189,13 @@ class _ChatInputFieldState extends State<ChatInputField>
           boxShadow: [
             if (isDark)
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               )
             else
               BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withValues(alpha: 0.2),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -323,11 +323,11 @@ class _ChatInputFieldState extends State<ChatInputField>
                                 ),
                                 decoration: BoxDecoration(
                                   color: isDark
-                                      ? AppColors.primaryColor.withOpacity(0.1)
-                                      : AppColors.primaryColor.withOpacity(0.05),
+                                      ? AppColors.primaryColor.withValues(alpha: 0.1)
+                                      : AppColors.primaryColor.withValues(alpha: 0.05),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppColors.primaryColor.withOpacity(0.3),
+                                    color: AppColors.primaryColor.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                 ),
@@ -381,8 +381,8 @@ class _ChatInputFieldState extends State<ChatInputField>
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
                                     color: isDark
-                                        ? Colors.grey[800]!.withOpacity(0.3)
-                                        : Colors.grey[200]!.withOpacity(0.5),
+                                        ? Colors.grey[800]!.withValues(alpha: 0.3)
+                                        : Colors.grey[200]!.withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Column(
@@ -514,7 +514,7 @@ class _ChatInputFieldState extends State<ChatInputField>
         boxShadow: [
           if (isActive)
             BoxShadow(
-              color: AppColors.primaryColor.withOpacity(0.3),
+              color: AppColors.primaryColor.withValues(alpha: 0.3),
               blurRadius: 8,
               spreadRadius: 1,
               offset: const Offset(0, 2),

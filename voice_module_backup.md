@@ -710,7 +710,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     if (chatProvider.connectionStatus == 'Connection failed' &&
                         chatProvider.isConnecting)
                       Container(
-                        color: Colors.black.withOpacity(0.7),
+                        color: Colors.black.withValues(alpha: 0.7),
                         child: Center(
                           child: Card(
                             elevation: 8,
@@ -758,7 +758,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         right: 0,
                         child: Container(
                           padding: const EdgeInsets.all(8),
-                          color: theme.scaffoldBackgroundColor.withOpacity(0.9),
+                          color: theme.scaffoldBackgroundColor.withValues(alpha: 0.9),
                           child: Row(
                             children: [
                               const SizedBox(width: 16),
@@ -906,7 +906,7 @@ class _VoiceChatOverlayState extends State<VoiceChatOverlay> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      color: Colors.black.withOpacity(0.7),
+      color: Colors.black.withValues(alpha: 0.7),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1186,13 +1186,13 @@ class _ChatInputFieldState extends State<ChatInputField> {
           boxShadow: [
             if (isDark)
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               )
             else
               BoxShadow(
-                color: Colors.grey.withOpacity(0.2),
+                color: Colors.grey.withValues(alpha: 0.2),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),

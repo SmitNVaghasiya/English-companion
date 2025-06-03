@@ -1,4 +1,4 @@
-19-05-2025
+<!-- 19-05-2025
 - One more thing top bar padding move english companion text to the left. completed.
 - Improve the ui for the voice to voice conversation According to how i planned.
 - Make voice to voice conversation persistant.
@@ -50,4 +50,15 @@ BACKEND_URL=http://192.168.137.1:8000
 # BACKEND_URL=http://172.30.176.1:8000
 # BACKEND_URL=http://192.168.137.1:8000
 see only one is not commented and for that uri i am getting the {"status":"ok","timestamp":"2025-05-27T09:17:26.664875","service":"English Companion API","version":"1.0.0"} this in the browser and postman but when i try to connect to the server of the application it is showing the error that connection failed. so make such solution which can help me to connect to the server of the application without changing the ip address in the .env file of the application every time and also make sure that it is working on all the devices.
- 
+  -->
+
+03/06/2025
+- size of the progress tracker box is not proper and also inside the progress tracker practice session box size is also not proper.
+- once i enter the text chat screen if click the back button it redirect to the homescreen but i want to redirect to the last screen i was using. And also after that when i once more try to enter the text chat screen i am directly redirecting to the last option i selected rather that showing me all the options to select from.
+- Grammar module is not working propely in case of the practice test, ui is also ruined.Have to add the grammar page inside the subtopic of the grammar module.
+- Once voice chat is selected even if i go to the text chat i am not able to use it as i am seeing the voice chat screen options.
+- even when i start text or voice or grammar any topic i am not seeing the count of it in the progress tracker.
+- show all the 15 badges in the progress tracker badges section to show which are the badges you can win.
+- in homescreen show the current strike level of the user.
+- smooth transition in the theme module inside of the text and voice chat screen and also add option of it in the part of the speeach and all other screens which do not have this option.
+- when i set the daily remainder time it is not able to save and also clock used there in 24 hours format but very tricky to use so use simple and easy to use clock.

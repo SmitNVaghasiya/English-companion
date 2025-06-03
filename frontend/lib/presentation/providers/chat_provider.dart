@@ -11,7 +11,15 @@ import '../../core/constants/app_strings.dart';
 
 enum VoiceStatus { idle, recording, processing, speaking, error }
 
-enum ConversationMode { formal, informal, dailyLife, custom, beginnersHelper, professionalConversation, everydaySituations }
+enum ConversationMode {
+  formal,
+  informal,
+  dailyLife,
+  custom,
+  beginnersHelper,
+  professionalConversation,
+  everydaySituations,
+}
 
 class ChatState {
   final List<MessageModel> messages;
@@ -255,31 +263,32 @@ class ChatProvider with ChangeNotifier {
 
       for (int attempt = 1; attempt <= _maxRetries; attempt++) {
         try {
-          final response = await _chatService
+          final result = await _chatService
               .sendQuery(messages)
               .timeout(
                 _requestTimeout,
                 onTimeout: () => throw Exception('Request timed out'),
               );
 
-          if (response['status'] == 'success') {
+          if (result.isSuccess && result.value != null) {
             _setConnectionStatus(
               null,
               AppStrings.connected,
               'Server is responding',
               false,
             );
+            final response = result.value!;
             final responseMessage = MessageModel(
-              content: response['content'] ?? 'No response from server',
-              role: response['role'] ?? 'assistant',
-              timestamp: DateTime.parse(
-                response['timestamp'] ?? DateTime.now().toIso8601String(),
-              ),
+              content: response.content,
+              role: response.role,
+              timestamp: DateTime.parse(response.timestamp),
             );
             addMessage(responseMessage);
             return responseMessage;
           } else {
-            throw Exception(response['content'] ?? 'Unknown error occurred');
+            final errorMessage =
+                result.error?.message ?? 'Unknown error occurred';
+            throw Exception(errorMessage);
           }
         } catch (e) {
           if (attempt == _maxRetries) {
@@ -336,6 +345,8 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> toggleVoiceRecording(BuildContext context) async {
+    final currentContext = context;
+
     if (_state.isLoading) {
       debugPrint(
         'ChatProvider: Toggle voice recording ignored: Operation in progress',
@@ -360,15 +371,16 @@ class ChatProvider with ChangeNotifier {
                 .toList();
 
         final result = await _chatService.stopVoiceRecording(chatHistory);
-        debugPrint('ChatProvider: Voice recording result: ${result['status']}');
         _state = _state.copyWith(isLoading: false);
         notifyListeners();
 
-        if (result['status'] == 'success') {
-          if (result['transcribed_text'] != null &&
-              result['transcribed_text'].toString().isNotEmpty) {
+        if (result.isSuccess) {
+          final voiceResponse = result.value!;
+          debugPrint('ChatProvider: Voice recording processed successfully');
+
+          if (voiceResponse.transcribedText.isNotEmpty) {
             final userMessage = MessageModel(
-              content: result['transcribed_text'],
+              content: voiceResponse.transcribedText,
               role: 'user',
               timestamp: DateTime.now().subtract(const Duration(seconds: 1)),
             );
@@ -380,9 +392,9 @@ class ChatProvider with ChangeNotifier {
             debugPrint(
               'ChatProvider: No transcribed text received from server',
             );
-            if (context.mounted) {
+            if (currentContext.mounted) {
               ChatUtils.showSnackBar(
-                context,
+                currentContext,
                 'Could not understand audio. Please speak clearly and try again.',
                 isError: true,
               );
@@ -392,13 +404,12 @@ class ChatProvider with ChangeNotifier {
           }
 
           await Future.delayed(const Duration(milliseconds: 100));
-          if (result['content'] != null && result['content'].isNotEmpty) {
+          if (voiceResponse.content.isNotEmpty) {
             final responseMessage = MessageModel(
-              content: result['content'],
-              role: result['role'] ?? 'assistant',
-              timestamp: DateTime.parse(
-                result['timestamp'] ?? DateTime.now().toIso8601String(),
-              ),
+              content: voiceResponse.content,
+              role: voiceResponse.role,
+              timestamp:
+                  DateTime.tryParse(voiceResponse.timestamp) ?? DateTime.now(),
             );
             debugPrint(
               'ChatProvider: Adding assistant response to UI: ${responseMessage.content}',
@@ -431,23 +442,23 @@ class ChatProvider with ChangeNotifier {
             _updateVoiceStatus(VoiceStatus.idle);
           }
         } else {
+          final errorMessage =
+              result.error?.message ?? 'Could not process audio';
           debugPrint(
-            'ChatProvider: Error in voice recording result: ${result['message']}',
+            'ChatProvider: Error in voice recording result: $errorMessage',
           );
-          final errorMessage = _handleError(
-            Exception(result['message'] ?? 'Could not process audio'),
-          );
+          final errorMsg = _handleError(Exception(errorMessage));
 
-          if (context.mounted) {
-            ChatUtils.showSnackBar(context, errorMessage, isError: true);
+          if (currentContext.mounted) {
+            ChatUtils.showSnackBar(currentContext, errorMsg, isError: true);
           }
 
-          final errorMsg = MessageModel(
-            content: errorMessage,
+          final systemMsg = MessageModel(
+            content: errorMsg,
             role: 'system',
             timestamp: DateTime.now(),
           );
-          addMessage(errorMsg);
+          addMessage(systemMsg);
 
           if (_state.isVoiceMode && !_state.isMuted) {
             _updateVoiceStatus(
@@ -466,40 +477,44 @@ class ChatProvider with ChangeNotifier {
         _updateVoiceStatus(VoiceStatus.recording, message: 'Listening...');
 
         try {
-          final result = await _chatService.startVoiceRecording();
-          debugPrint(
-            'ChatProvider: Start recording result: ${result['status']}',
-          );
+          final startResult = await _chatService.startVoiceRecording();
 
-          if (result['status'] == 'recording') {
+          if (startResult.isSuccess) {
+            debugPrint('ChatProvider: Start recording successful');
             _state = _state.copyWith(isLoading: false);
             _updateVoiceStatus(VoiceStatus.recording, message: 'Listening...');
             notifyListeners();
 
-            if (context.mounted) {
+            if (currentContext.mounted) {
               ChatUtils.showSnackBar(
-                context,
+                currentContext,
                 'Recording started. Tap mic again when finished speaking.',
                 isError: false,
               );
             }
           } else {
-            throw Exception(result['message'] ?? 'Failed to start recording');
+            throw Exception(
+              startResult.error?.message ?? 'Failed to start recording',
+            );
           }
         } catch (e) {
           debugPrint('ChatProvider: Failed to start recording: $e');
-          _handleRecordingError(
-            'Failed to start recording: $e',
-            context: context,
-          );
+          if (currentContext.mounted) {
+            _handleRecordingError(
+              'Failed to start recording: $e',
+              context: currentContext,
+            );
+          } else {
+            _handleRecordingError('Failed to start recording: $e');
+          }
           rethrow;
         }
       }
     } catch (e) {
       debugPrint('ChatProvider: Error in toggleVoiceRecording: $e');
       final errorMessage = _handleError(e);
-      if (context.mounted) {
-        ChatUtils.showSnackBar(context, errorMessage, isError: true);
+      if (currentContext.mounted) {
+        ChatUtils.showSnackBar(currentContext, errorMessage, isError: true);
       }
 
       if (_state.isVoiceMode && !_chatService.isRecording) {
@@ -544,16 +559,32 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      ChatUtils.testConnectionAndUpdateStatus(
+      if (!context.mounted) return;
+
+      await ChatUtils.testConnectionAndUpdateStatus(
         chatService: _chatService,
         context: context,
-        onUpdate:
-            (status, message, isError) =>
-                _setConnectionStatus(context, status, message, isError),
-        onRetry: () => testConnection(context),
+        onUpdate: (status, message, isError) {
+          if (context.mounted) {
+            _setConnectionStatus(context, status, message, isError);
+          }
+        },
+        onRetry: () {
+          if (context.mounted) {
+            testConnection(context);
+          }
+        },
       );
     } catch (e) {
       debugPrint('ChatProvider: Error testing connection: $e');
+      if (context.mounted) {
+        _setConnectionStatus(
+          context,
+          'Error',
+          'Failed to test connection',
+          true,
+        );
+      }
     } finally {
       _state = _state.copyWith(isConnecting: false);
       notifyListeners();

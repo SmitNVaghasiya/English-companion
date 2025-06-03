@@ -48,11 +48,14 @@ class ConnectionUtils {
 
   static Future<bool> hasInternetConnection() async {
     try {
-      final connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) return false;
-
+      final connectivityResults = await Connectivity().checkConnectivity();
+      final hasConnection = connectivityResults.any((result) => 
+          result != ConnectivityResult.none && result != ConnectivityResult.other);
+      if (!hasConnection) return false;
+      
+      // Check if there's actual internet connectivity
       final result = await InternetAddress.lookup('google.com').timeout(
-        Duration(seconds: 2),
+        const Duration(seconds: 2),
         onTimeout: () => throw SocketException('Connection timeout'),
       );
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;

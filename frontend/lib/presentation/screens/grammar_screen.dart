@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import '../../core/constants/app_colors.dart';
 import '../../core/theme/theme_provider.dart';
 import 'grammar_topic_screen.dart';
+import 'practice_sessions_screen.dart';
 
 class GrammarScreen extends StatefulWidget {
   const GrammarScreen({super.key});
@@ -16,6 +17,16 @@ class _GrammarScreenState extends State<GrammarScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
+  final List<Map<String, String>> _topics = [
+    {'id': 'parts_of_speech', 'title': 'Parts of Speech'},
+    {'id': 'verb_tenses', 'title': 'Verb Tenses'},
+    {'id': 'sentence_structure', 'title': 'Sentence Structure'},
+    {'id': 'articles', 'title': 'Articles'},
+    {'id': 'prepositions', 'title': 'Prepositions'},
+    {'id': 'modals', 'title': 'Modals'},
+    {'id': 'conditionals', 'title': 'Conditionals'},
+    {'id': 'passive_voice', 'title': 'Passive Voice'},
+  ];
 
   @override
   void initState() {
@@ -24,28 +35,18 @@ class _GrammarScreenState extends State<GrammarScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-
     _scaleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-
-    try {
-      _fadeController.forward();
-      _scaleController.forward();
-    } catch (e) {
-      debugPrint('Error starting animations: $e');
-    }
+    _fadeController.forward();
+    _scaleController.forward();
   }
 
   @override
   void dispose() {
-    try {
-      _fadeController.dispose();
-      _scaleController.dispose();
-    } catch (e) {
-      debugPrint('Error disposing animations: $e');
-    }
+    _fadeController.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
@@ -61,7 +62,7 @@ class _GrammarScreenState extends State<GrammarScreen>
           appBar: AppBar(
             elevation: 0,
             backgroundColor:
-                isDark ? Colors.black12 : Colors.white.withOpacity(0.1),
+                isDark ? Colors.black12 : Colors.white.withValues(alpha: 0.1),
             title: const Text(
               'Grammar Lessons',
               style: TextStyle(
@@ -69,27 +70,22 @@ class _GrammarScreenState extends State<GrammarScreen>
                 letterSpacing: -0.5,
               ),
             ),
-            titleSpacing: 16,
             actions: [
               IconButton(
                 icon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (
-                    Widget child,
-                    Animation<double> animation,
-                  ) {
-                    return RotationTransition(
-                      turns: animation,
-                      child: ScaleTransition(scale: animation, child: child),
-                    );
-                  },
+                  transitionBuilder:
+                      (child, animation) => RotationTransition(
+                        turns: animation,
+                        child: ScaleTransition(scale: animation, child: child),
+                      ),
                   child: Icon(
                     isDark ? Icons.light_mode : Icons.dark_mode,
                     key: ValueKey<bool>(isDark),
                     color: isDark ? Colors.amber : Colors.blueGrey,
                   ),
                 ),
-                onPressed: () => themeProvider.toggleTheme(),
+                onPressed: themeProvider.toggleTheme,
                 tooltip:
                     isDark ? 'Switch to light mode' : 'Switch to dark mode',
               ),
@@ -151,19 +147,18 @@ class _GrammarScreenState extends State<GrammarScreen>
                             ),
                             const SizedBox(height: 12),
                             Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    MediaQuery.of(context).size.width > 360
-                                        ? 12
-                                        : 8,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryColor.withOpacity(0.1),
+                                color: AppColors.primaryColor.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: AppColors.primaryColor.withOpacity(
-                                    0.3,
+                                  color: AppColors.primaryColor.withValues(
+                                    alpha: 0.3,
                                   ),
                                   width: 1,
                                 ),
@@ -180,10 +175,38 @@ class _GrammarScreenState extends State<GrammarScreen>
                         ),
                       ),
                     ),
-                    SizedBox(
-                      height:
-                          MediaQuery.of(context).size.height > 700 ? 32 : 24,
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed:
+                          () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (_) => PracticeSessionsScreen(
+                                    topicId: 'all_topics',
+                                    topicTitle: 'All Grammar Topics',
+                                  ),
+                            ),
+                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Combined Practice',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 24),
                     Text(
                       'Grammar Topics',
                       style: theme.textTheme.titleMedium?.copyWith(
@@ -195,95 +218,28 @@ class _GrammarScreenState extends State<GrammarScreen>
                     Expanded(
                       child: ScaleTransition(
                         scale: _scaleController,
-                        child: GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio:
-                              MediaQuery.of(context).size.width > 400
-                                  ? 0.8
-                                  : 0.7,
+                        child: GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                                childAspectRatio: 0.8,
+                              ),
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.only(bottom: 16),
-                          children: [
-                            _buildGrammarTopicCard(
+                          itemCount: _topics.length,
+                          itemBuilder: (context, index) {
+                            final topic = _topics[index];
+                            return _buildGrammarTopicCard(
                               context,
-                              title: 'Parts of Speech',
+                              title: topic['title']!,
                               icon: Icons.category_outlined,
-                              description: 'Nouns, verbs, adjectives, and more',
-                              onTap:
-                                  () => _navigateToTopic(
-                                    context,
-                                    'parts_of_speech',
-                                  ),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Verb Tenses',
-                              icon: Icons.access_time_outlined,
-                              description: 'Past, present, and future tenses',
-                              onTap:
-                                  () =>
-                                      _navigateToTopic(context, 'verb_tenses'),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Sentence Structure',
-                              icon: Icons.format_align_left_outlined,
-                              description: 'Building correct English sentences',
-                              onTap:
-                                  () => _navigateToTopic(
-                                    context,
-                                    'sentence_structure',
-                                  ),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Articles',
-                              icon: Icons.article_outlined,
-                              description: 'A, an, and the',
-                              onTap:
-                                  () => _navigateToTopic(context, 'articles'),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Prepositions',
-                              icon: Icons.place_outlined,
-                              description: 'In, on, at, and more',
-                              onTap:
-                                  () =>
-                                      _navigateToTopic(context, 'prepositions'),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Modals',
-                              icon: Icons.help_outline,
-                              description: 'Can, could, should, would, etc.',
-                              onTap: () => _navigateToTopic(context, 'modals'),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Conditionals',
-                              icon: Icons.compare_arrows_outlined,
                               description:
-                                  'If clauses and conditional sentences',
+                                  'Learn about ${topic['title']!.toLowerCase()}',
                               onTap:
-                                  () =>
-                                      _navigateToTopic(context, 'conditionals'),
-                            ),
-                            _buildGrammarTopicCard(
-                              context,
-                              title: 'Passive Voice',
-                              icon: Icons.swap_horiz_outlined,
-                              description:
-                                  'When the subject receives the action',
-                              onTap:
-                                  () => _navigateToTopic(
-                                    context,
-                                    'passive_voice',
-                                  ),
-                            ),
-                          ],
+                                  () => _navigateToTopic(context, topic['id']!),
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -300,9 +256,7 @@ class _GrammarScreenState extends State<GrammarScreen>
   void _navigateToTopic(BuildContext context, String topicId) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => GrammarTopicScreen(topicId: topicId),
-      ),
+      MaterialPageRoute(builder: (_) => GrammarTopicScreen(topicId: topicId)),
     );
   }
 
@@ -315,12 +269,13 @@ class _GrammarScreenState extends State<GrammarScreen>
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final randomRotation = (math.Random().nextInt(6) - 3) * 0.05;
 
     return Card(
       elevation: 5,
       shadowColor:
-          isDark ? AppColors.primaryColor.withOpacity(0.3) : Colors.black26,
+          isDark
+              ? AppColors.primaryColor.withValues(alpha: 0.3)
+              : Colors.black26,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: onTap,
@@ -343,27 +298,26 @@ class _GrammarScreenState extends State<GrammarScreen>
                 right: -10,
                 bottom: -10,
                 child: Transform.rotate(
-                  angle: randomRotation,
+                  angle: (math.Random().nextInt(6) - 3) * 0.05,
                   child: Container(
                     height: 60,
                     width: 60,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withOpacity(0.06),
+                      color: AppColors.primaryColor.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(20.0),
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor.withOpacity(0.15),
+                        color: AppColors.primaryColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
@@ -382,36 +336,31 @@ class _GrammarScreenState extends State<GrammarScreen>
                     ),
                     const SizedBox(height: 8),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Text(
-                          description,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isDark ? Colors.white60 : Colors.black54,
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                      child: Text(
+                        description,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isDark ? Colors.white60 : Colors.black54,
+                          height: 1.3,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.arrow_forward,
-                            size: 16,
-                            color: AppColors.primaryColor,
-                          ),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ],
+                        child: const Icon(
+                          Icons.arrow_forward,
+                          size: 16,
+                          color: AppColors.primaryColor,
+                        ),
+                      ),
                     ),
                   ],
                 ),

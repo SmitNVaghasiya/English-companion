@@ -92,12 +92,11 @@ class RegistrationScreenState extends State<RegistrationScreen> {
           'username': _username,
           'email': _email,
           'password': _password,
+          'otp': _otp,
         }),
       );
 
-      if (!mounted) return;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         await authProvider.updateUserDetails(
           token: data['access_token'],
@@ -106,39 +105,48 @@ class RegistrationScreenState extends State<RegistrationScreen> {
           email: _email,
         );
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Registration successful!'),
             backgroundColor: AppColors.primaryColor,
+            duration: Duration(seconds: 2),
           ),
         );
 
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const VoiceChatScreen()),
           (route) => false,
         );
       } else {
-        final errorDetail =
-            jsonDecode(response.body)['detail'] ?? response.body;
+        if (!mounted) return;
+        final errorDetail = jsonDecode(response.body)['detail'] ?? response.body;
         if (errorDetail == "Email already exists") {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Email already registered. Please login.'),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
             ),
           );
-          Navigator.pop(context);
+          if (mounted) {
+            Navigator.pop(context);
+          }
         } else if (errorDetail == "Username already exists") {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Username already taken. Please choose another.'),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
             ),
           );
-          setState(() {
-            _isOtpSent = false; // Allow retry
-          });
+          if (mounted) {
+            setState(() {
+              _isOtpSent = false; // Allow retry
+            });
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

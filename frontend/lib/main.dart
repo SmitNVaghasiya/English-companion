@@ -1,3 +1,5 @@
+import 'package:english_companion/presentation/screens/notification_settings_screen.dart';
+import 'package:english_companion/presentation/screens/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +8,12 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/chat_provider.dart';
+import 'presentation/providers/notification_provider.dart';
+import 'presentation/providers/progress_provider.dart';
 import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/chat_screen.dart';
+import 'presentation/screens/grammar_screen.dart';
+import 'presentation/screens/progress_screen.dart';
 
 void main() async {
   try {
@@ -24,6 +31,8 @@ void main() async {
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
           ChangeNotifierProvider(create: (_) => ChatProvider()),
           ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => ProgressProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ],
         child: const MyApp(),
       ),
@@ -51,8 +60,21 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.currentThemeMode,
-            home: const HomeScreen(),
-            routes: {'/home': (context) => const HomeScreen()},
+            initialRoute: '/home',
+            routes: {
+              '/home': (context) => const HomeScreen(),
+              '/chat': (context) => const ChatScreen(),
+              '/learn': (context) => const GrammarScreen(),
+              '/practice':
+                  (context) => const ChatScreen(initialVoiceMode: true),
+              '/progress': (context) => const ProgressScreen(),
+              '/notifications': (context) => const NotificationsScreen(),
+              '/notification-settings':
+                  (context) => const NotificationSettingsScreen(),
+              '/profile': (context) => const HomeScreen(),
+              '/settings': (context) => const HomeScreen(),
+              '/help': (context) => const HomeScreen(),
+            },
           );
         } catch (e) {
           debugPrint('Error building MyApp: $e');

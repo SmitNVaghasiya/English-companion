@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_strings.dart';
 import '../../data/models/message_model.dart';
 import '../providers/chat_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/chat_header.dart';
 import '../widgets/chat_input_field.dart';
 import '../widgets/message_bubble.dart';
 import 'conversation_mode_screen.dart';
@@ -42,10 +44,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       chatProvider.clearMessages();
       chatProvider.testConnection(context);
 
+      // Set voice mode if needed, but don't navigate away
       if (widget.initialVoiceMode) {
         chatProvider.toggleVoiceMode(context);
-      } else {
-        _navigateToConversationModeScreen();
+      }
+
+      // Check if conversation mode is set
+      if (chatProvider.state.conversationMode == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ConversationModeScreen(
+                  isVoiceMode: widget.initialVoiceMode,
+                ),
+          ),
+        );
       }
     });
 
@@ -54,20 +68,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _scrollToBottom();
       }
     });
-  }
-
-  void _navigateToConversationModeScreen() {
-    final chatProvider = context.read<ChatProvider>();
-    if (chatProvider.state.conversationMode == null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) =>
-                  ConversationModeScreen(isVoiceMode: widget.initialVoiceMode),
-        ),
-      );
-    }
   }
 
   void _scrollToBottom() {
@@ -137,90 +137,43 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
-  PreferredSizeWidget _buildAppBar(ChatProvider chatProvider, ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
+  Widget _buildChatHeader(ChatProvider chatProvider) {
+    final mode = chatProvider.state.conversationMode ?? ConversationMode.custom;
+    String title = 'English Companion';
+    String description = '';
 
-    return AppBar(
-      toolbarHeight: 68,
-      titleSpacing: 0,
-      leading: Builder(
-        builder:
-            (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              tooltip: 'Open menu',
-            ),
-      ),
-      title: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'English Companion',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 6),
-            GestureDetector(
-              onTap:
-                  chatProvider.state.connectionStatus == 'Connection failed'
-                      ? () => chatProvider.testConnection(context)
-                      : null,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    margin: const EdgeInsets.only(right: 6),
-                    decoration: BoxDecoration(
-                      color:
-                          chatProvider.state.connectionStatus == 'Connected'
-                              ? Colors.green
-                              : chatProvider.state.connectionStatus ==
-                                  'Connecting...'
-                              ? Colors.orange
-                              : Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Text(
-                    chatProvider.state.connectionStatus,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      height: 1.2,
-                      color:
-                          chatProvider.state.connectionStatus == 'Connected'
-                              ? Colors.green[400]
-                              : chatProvider.state.connectionStatus ==
-                                  'Connecting...'
-                              ? Colors.orange[400]
-                              : Colors.red[400],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: Icon(
-            isDark ? Icons.light_mode : Icons.dark_mode,
-            color: isDark ? Colors.amber : Colors.blueGrey,
-          ),
-          onPressed: () => chatProvider.toggleTheme(context),
-          tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
-        ),
-        const SizedBox(width: 8),
-      ],
+    switch (mode) {
+      case ConversationMode.dailyLife:
+        description = AppStrings.dailyLifeGreeting;
+        break;
+      case ConversationMode.beginnersHelper:
+        description = AppStrings.beginnersHelperGreeting;
+        break;
+      case ConversationMode.professionalConversation:
+        description = AppStrings.professionalConversationGreeting;
+        break;
+      case ConversationMode.everydaySituations:
+        description = AppStrings.everydaySituationsGreeting;
+        break;
+      case ConversationMode.formal:
+        description =
+            "Greetings! I am your English Companion for formal conversations. How may I assist you in a professional setting today?";
+        break;
+      case ConversationMode.informal:
+        description =
+            "Hey there! I'm your English Companion for casual chats. What's up? Let's talk like friends!";
+        break;
+      case ConversationMode.custom:
+        description =
+            "Hi! I'm ready to talk about any topic you choose. What would you like to discuss today?";
+        break;
+    }
+
+    return ChatHeader(
+      title: title,
+      description: description,
+      mode: mode,
+      isVoiceMode: chatProvider.state.isVoiceMode,
     );
   }
 
@@ -228,69 +181,119 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final chatProvider = context.watch<ChatProvider>();
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: _buildAppBar(chatProvider, theme),
-      drawer: const AppDrawer(),
-      body: Column(
-        children: [
-          Expanded(
-            child:
-                chatProvider.state.messages.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'Start a conversation!',
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
-                      ),
-                    )
-                    : ListView.builder(
-                      controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      itemCount: chatProvider.state.messages.length,
-                      itemBuilder: (context, index) {
-                        return MessageBubble(
-                          message: chatProvider.state.messages[index],
-                        );
-                      },
-                    ),
-          ),
-          ChatInputField(
-            controller: _queryController,
-            focusNode: _inputFocusNode,
-            isLoading: chatProvider.state.isLoading,
-            isVoiceMode: chatProvider.state.isVoiceMode,
-            isRecording:
-                chatProvider.state.voiceStatus == VoiceStatus.recording,
-            isPlaying: chatProvider.state.voiceStatus == VoiceStatus.speaking,
-            onSend: _sendQuery,
-            onClear: () => _queryController.clear(),
-          ),
-          if (chatProvider.state.isLoading)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: theme.scaffoldBackgroundColor.withOpacity(0.9),
-              child: Row(
-                children: [
-                  const SizedBox(width: 16),
-                  FadeTransition(
-                    opacity: _typingAnimation,
-                    child: Row(
-                      children: [
-                        TypingDot(animation: _typingAnimation),
-                        const SizedBox(width: 4),
-                        TypingDot(animation: _typingAnimation),
-                        const SizedBox(width: 4),
-                        TypingDot(animation: _typingAnimation),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Text('Assistant is typing...'),
-                ],
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor:
+            isDark ? Colors.black12 : Colors.white.withValues(alpha: 0.1),
+        leading: Builder(
+          builder:
+              (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                tooltip: 'Open menu',
               ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode : Icons.dark_mode,
+              color: isDark ? Colors.amber : Colors.blueGrey,
             ),
+            onPressed: () => chatProvider.toggleTheme(context),
+            tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+          ),
+          const SizedBox(width: 8),
         ],
+      ),
+      drawer: const AppDrawer(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors:
+                isDark
+                    ? [const Color(0xFF1A1A1A), const Color(0xFF0D0D0D)]
+                    : [Colors.white, const Color(0xFFF5F5F5)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: _buildChatHeader(chatProvider),
+              ),
+              Expanded(
+                child:
+                    chatProvider.state.messages.isEmpty
+                        ? Center(
+                          child: Text(
+                            'Start a conversation!',
+                            style: TextStyle(
+                              color:
+                                  isDark ? Colors.grey[400] : Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                          ),
+                        )
+                        : ListView.builder(
+                          controller: _scrollController,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                          itemCount: chatProvider.state.messages.length,
+                          itemBuilder: (context, index) {
+                            return MessageBubble(
+                              message: chatProvider.state.messages[index],
+                            );
+                          },
+                        ),
+              ),
+              ChatInputField(
+                controller: _queryController,
+                focusNode: _inputFocusNode,
+                isLoading: chatProvider.state.isLoading,
+                isVoiceMode: chatProvider.state.isVoiceMode,
+                isRecording:
+                    chatProvider.state.voiceStatus == VoiceStatus.recording,
+                isPlaying:
+                    chatProvider.state.voiceStatus == VoiceStatus.speaking,
+                onSend: _sendQuery,
+                onClear: () => _queryController.clear(),
+              ),
+              if (chatProvider.state.isLoading)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  color: theme.scaffoldBackgroundColor.withValues(alpha: 0.9),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 16),
+                      FadeTransition(
+                        opacity: _typingAnimation,
+                        child: Row(
+                          children: [
+                            TypingDot(animation: _typingAnimation),
+                            const SizedBox(width: 4),
+                            TypingDot(animation: _typingAnimation),
+                            const SizedBox(width: 4),
+                            TypingDot(animation: _typingAnimation),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text('Assistant is typing...'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

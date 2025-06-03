@@ -163,6 +163,46 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = context.watch<ChatProvider>();
 
+    Future<void> handleRecordButtonPress() async {
+      if (chatProvider.state.isLoading || _isCancelled) return;
+      
+      if (!mounted) return;
+      
+      // Store the current context before any async operation
+      final currentContext = context;
+      
+      try {
+        if (chatProvider.state.voiceStatus == VoiceStatus.recording) {
+          await _stopRecordingAndProcess(chatProvider);
+          if (!mounted) return;
+          // Check if the widget is still in the tree before using the context
+          if (currentContext.mounted) {
+            await chatProvider.toggleVoiceRecording(currentContext);
+          }
+        } else {
+          await _startRecording();
+          if (!mounted) return;
+          // Check if the widget is still in the tree before using the context
+          if (currentContext.mounted) {
+            await chatProvider.toggleVoiceRecording(currentContext);
+          }
+        }
+        
+        if (mounted) {
+          setState(() {
+            _statusMessage = chatProvider.state.voiceStatus == VoiceStatus.recording
+                ? 'Recording...'
+                : 'Tap to start recording';
+          });
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _statusMessage = 'Error: $e';
+        });
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Voice Chat'),
@@ -188,26 +228,9 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed:
-                  chatProvider.state.isLoading || _isCancelled
-                      ? null
-                      : () async {
-                        if (chatProvider.state.voiceStatus ==
-                            VoiceStatus.recording) {
-                          await _stopRecordingAndProcess(chatProvider);
-                          await chatProvider.toggleVoiceRecording(context);
-                        } else {
-                          await _startRecording();
-                          await chatProvider.toggleVoiceRecording(context);
-                        }
-                        setState(() {
-                          _statusMessage =
-                              chatProvider.state.voiceStatus ==
-                                      VoiceStatus.recording
-                                  ? 'Recording...'
-                                  : 'Tap to start recording';
-                        });
-                      },
+              onPressed: chatProvider.state.isLoading || _isCancelled 
+                  ? null 
+                  : handleRecordButtonPress,
               child: Text(
                 chatProvider.state.voiceStatus == VoiceStatus.recording
                     ? 'Stop Recording'

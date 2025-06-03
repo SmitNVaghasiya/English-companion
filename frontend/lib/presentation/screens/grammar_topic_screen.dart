@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../data/models/grammar_topic.dart';
+import '../../data/models/grammar_topic.dart' as models;
 import '../../data/services/grammar_service.dart';
 import 'practice_sessions_screen.dart';
 
@@ -16,18 +16,12 @@ class GrammarTopicScreen extends StatefulWidget {
 class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
   late Future<GrammarTopic> _topicFuture;
   final GrammarService _grammarService = GrammarService();
-  List<GrammarRule>? _rules;
-  List<GrammarExample>? _examples;
+  GrammarTopic? _cachedTopic;
 
   @override
   void initState() {
     super.initState();
     _topicFuture = _grammarService.getGrammarTopic(widget.topicId);
-  }
-
-  Future<void> _loadRulesAndExamples(GrammarTopic topic) async {
-    _rules ??= topic.rules();
-    _examples ??= topic.examples();
   }
 
   @override
@@ -75,7 +69,6 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-
             if (snapshot.hasError) {
               return Center(
                 child: Column(
@@ -89,13 +82,12 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _topicFuture = _grammarService.getGrammarTopic(
-                            widget.topicId,
-                          );
-                        });
-                      },
+                      onPressed:
+                          () => setState(() {
+                            _topicFuture = _grammarService.getGrammarTopic(
+                              widget.topicId,
+                            );
+                          }),
                       child: const Text('Try Again'),
                     ),
                   ],
@@ -103,199 +95,34 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
               );
             }
 
-            final topic = snapshot.data!;
-            _loadRulesAndExamples(topic); // Load rules and examples lazily
-
+            final topic = _cachedTopic ??= snapshot.data!;
             return SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Topic Header
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color:
-                          isDark
-                              ? AppColors.primaryColor.withOpacity(0.15)
-                              : AppColors.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryColor.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            topic.icon,
-                            size: 32,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                topic.title,
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                topic.shortDescription,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color:
-                                      isDark ? Colors.white70 : Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  _buildHeader(context, topic, isDark),
                   const SizedBox(height: 24),
-
-                  // Introduction
-                  Text(
+                  _buildSection(
+                    context,
                     'Introduction',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
                     topic.introduction,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: isDark ? Colors.white70 : Colors.black87,
-                      height: 1.5,
-                    ),
+                    isDark,
                   ),
-
                   const SizedBox(height: 24),
-
-                  // Rules
-                  Text(
-                    'Rules',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
+                  _buildSection(
+                    context,
+                    'Detailed Explanation',
+                    topic.detailedExplanation,
+                    isDark,
                   ),
-                  const SizedBox(height: 12),
-                  if (_rules != null)
-                    ..._rules!.map(
-                      (rule) => _buildRuleCard(context, rule, isDark),
-                    )
-                  else
-                    const Center(child: CircularProgressIndicator()),
-
                   const SizedBox(height: 24),
-
-                  // Examples
-                  Text(
-                    'Examples',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_examples != null)
-                    ..._examples!.map(
-                      (example) => _buildExampleCard(context, example, isDark),
-                    )
-                  else
-                    const Center(child: CircularProgressIndicator()),
-
+                  _buildRulesSection(context, topic, isDark),
                   const SizedBox(height: 24),
-
-                  // Practice Section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.black26 : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-                        width: 1,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              color: AppColors.primaryColor,
-                              size: 24,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Practice',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Ready to test your knowledge?',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => PracticeSessionsScreen(
-                                      topicId: topic.id,
-                                      topicTitle: topic.title,
-                                    ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 24,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('Start Practice'),
-                              SizedBox(width: 8),
-                              Icon(Icons.arrow_forward, size: 16),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  _buildExamplesSection(context, topic, isDark),
+                  const SizedBox(height: 24),
+                  _buildPracticeSection(context, topic, isDark),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -306,9 +133,212 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
     );
   }
 
-  Widget _buildRuleCard(BuildContext context, GrammarRule rule, bool isDark) {
+  Widget _buildHeader(BuildContext context, GrammarTopic topic, bool isDark) {
     final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color:
+            isDark
+                ? AppColors.primaryColor.withValues(alpha: 0.15)
+                : AppColors.primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(topic.icon, size: 32, color: AppColors.primaryColor),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  topic.title,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  topic.shortDescription,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildSection(
+    BuildContext context,
+    String title,
+    String content,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          content,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: isDark ? Colors.white70 : Colors.black87,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRulesSection(
+    BuildContext context,
+    GrammarTopic topic,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Rules',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...topic.rules().map((rule) => _buildRuleCard(context, rule, isDark)),
+      ],
+    );
+  }
+
+  Widget _buildExamplesSection(
+    BuildContext context,
+    GrammarTopic topic,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Examples',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...topic.examples().map(
+          (example) => _buildExampleCard(context, example, isDark),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPracticeSection(
+    BuildContext context,
+    GrammarTopic topic,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black26 : Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.assignment_outlined,
+                color: AppColors.primaryColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Practice',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Ready to test your knowledge?',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => PracticeSessionsScreen(
+                          topicId: topic.id,
+                          topicTitle: topic.title,
+                        ),
+                  ),
+                ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Start Practice', style: TextStyle(color: Colors.white)),
+                SizedBox(width: 8),
+                Icon(Icons.arrow_forward, size: 16, color: Colors.white),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRuleCard(
+    BuildContext context,
+    models.GrammarRule rule,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -345,23 +375,21 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
 
   Widget _buildExampleCard(
     BuildContext context,
-    GrammarExample example,
+    models.GrammarExample example,
     bool isDark,
   ) {
     final theme = Theme.of(context);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      width: double.infinity, // Make container take full width
       decoration: BoxDecoration(
         color:
             isDark
-                ? AppColors.primaryColor.withOpacity(0.1)
-                : AppColors.primaryColor.withOpacity(0.05),
+                ? AppColors.primaryColor.withValues(alpha: 0.1)
+                : AppColors.primaryColor.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.primaryColor.withOpacity(0.2),
+          color: AppColors.primaryColor.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -386,7 +414,7 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
               height: 1.5,
             ),
           ),
-          if (example.incorrect.isNotEmpty) ...[
+          if (example.incorrect != null && example.incorrect!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               'Incorrect: ${example.incorrect}',
@@ -397,10 +425,11 @@ class _GrammarTopicScreenState extends State<GrammarTopicScreen> {
               ),
             ),
           ],
-          if (example.explanation.isNotEmpty) ...[
+          if (example.explanation != null &&
+              example.explanation!.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              example.explanation,
+              example.explanation!,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: isDark ? Colors.white70 : Colors.black87,
                 height: 1.5,

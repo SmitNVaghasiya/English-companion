@@ -1,8 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 void main() async {
-  print(
+  debugPrint(
     'Finding available network interfaces and testing server connectivity...\n',
   );
 
@@ -10,7 +11,7 @@ void main() async {
   final interfaces = await NetworkInterface.list();
 
   if (interfaces.isEmpty) {
-    print('No network interfaces found!');
+    debugPrint('No network interfaces found!');
     return;
   }
 
@@ -26,16 +27,16 @@ void main() async {
   }
 
   if (ipAddresses.isEmpty) {
-    print('No IPv4 addresses found!');
+    debugPrint('No IPv4 addresses found!');
     return;
   }
 
-  print('Found ${ipAddresses.length} IPv4 addresses:');
+  debugPrint('Found ${ipAddresses.length} IPv4 addresses:');
   for (var ip in ipAddresses) {
-    print('- $ip');
+    debugPrint('- $ip');
   }
 
-  print('\nTesting connectivity to common server ports...');
+  debugPrint('\nTesting connectivity to common server ports...');
 
   // Common ports to test (8000 is the default for most backends)
   final ports = [8000, 8080, 3000, 5000, 80, 443];
@@ -52,22 +53,22 @@ void main() async {
         final url = 'http://$ip:$port$endpoint';
 
         try {
-          print('Testing: $url');
+          debugPrint('Testing: $url');
           final response = await http
               .get(Uri.parse(url))
               .timeout(const Duration(seconds: 2));
 
           if (response.statusCode == 200) {
-            print('✅ Found server at: $url');
-            print('Response: ${response.body}');
+            debugPrint('✅ Found server at: $url');
+            debugPrint('Response: ${response.body}');
             foundServer = true;
 
             // If this is not the root endpoint, suggest the base URL
             if (endpoint.isNotEmpty) {
               final baseUrl = 'http://$ip:$port';
-              print('\n✅ Server is running at: $baseUrl');
-              print('Update your .env file with:');
-              print('BACKEND_URL=$baseUrl');
+              debugPrint('\n✅ Server is running at: $baseUrl');
+              debugPrint('Update your .env file with:');
+              debugPrint('BACKEND_URL=$baseUrl');
             }
 
             return;
@@ -80,8 +81,10 @@ void main() async {
   }
 
   if (!foundServer) {
-    print('\n❌ Could not find a running server on any of the tested ports.');
-    print(
+    debugPrint(
+      '\n❌ Could not find a running server on any of the tested ports.',
+    );
+    debugPrint(
       'Make sure your backend server is running and accessible from this machine.',
     );
   }
